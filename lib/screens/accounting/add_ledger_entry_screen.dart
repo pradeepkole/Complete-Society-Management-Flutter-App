@@ -61,7 +61,7 @@ class _AddLedgerEntryScreenState extends State<AddLedgerEntryScreen> {
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Type Toggle
               Row(
@@ -161,7 +161,7 @@ class _AddLedgerEntryScreenState extends State<AddLedgerEntryScreen> {
                   Expanded(
                     flex: 3,
                     child: Column(
-                      crossAxisAlignment: CrossAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('${lang.tr('amount')} (₹)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 6),
@@ -178,7 +178,7 @@ class _AddLedgerEntryScreenState extends State<AddLedgerEntryScreen> {
                   Expanded(
                     flex: 2,
                     child: Column(
-                      crossAxisAlignment: CrossAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(lang.tr('voucherNo'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 6),

@@ -28,7 +28,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     return AppBar(
       title: Column(
-        crossAxisAlignment: CrossAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title ?? (lang.isMarathi ? 'शिवाजी पार्क हौसिंग सोसायटी' : 'Shivaji Park CHS Ltd'),

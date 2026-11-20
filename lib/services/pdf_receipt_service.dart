@@ -32,7 +32,7 @@ class PdfReceiptService {
               borderRadius: pw.BorderRadius.circular(12),
             ),
             child: pw.Column(
-              crossAxisAlignment: pw.CrossAlignment.start,
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 // Header: Society Details
                 pw.Center(
@@ -82,7 +82,7 @@ class PdfReceiptService {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Column(
-                      crossAxisAlignment: pw.CrossAlignment.start,
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text('Receipt No: ${bill.receiptNumber.isNotEmpty ? bill.receiptNumber : 'REC-${bill.billYear}-${bill.billMonth}-${bill.flatNumber}'}',
                             style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
@@ -93,7 +93,7 @@ class PdfReceiptService {
                       ],
                     ),
                     pw.Column(
-                      crossAxisAlignment: pw.CrossAlignment.end,
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
                         pw.Text('Payment Date: $paidDate', style: const pw.TextStyle(fontSize: 10)),
                         pw.Text('Payment Status: PAID / भरले',
@@ -161,10 +161,10 @@ class PdfReceiptService {
                 // Footer & Signatures
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: pw.CrossAlignment.end,
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
                     pw.Column(
-                      crossAxisAlignment: pw.CrossAlignment.start,
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Container(
                           width: 80,
@@ -185,7 +185,7 @@ class PdfReceiptService {
                       ],
                     ),
                     pw.Column(
-                      crossAxisAlignment: pw.CrossAlignment.end,
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
                         pw.Text('For $societyNameEn',
                             style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),

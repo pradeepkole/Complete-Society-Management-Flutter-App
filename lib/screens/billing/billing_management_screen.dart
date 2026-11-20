@@ -49,7 +49,7 @@ class _BillingManagementScreenState extends State<BillingManagementScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Summary Cards
             Row(
@@ -157,7 +157,7 @@ class _BillingManagementScreenState extends State<BillingManagementScreen> {
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               AppDateFormatter.formatCurrency(bill.totalAmount),
@@ -272,7 +272,7 @@ class _BillingManagementScreenState extends State<BillingManagementScreen> {
         title: Text('${lang.tr('markPaidManually')} (${bill.flatNumber})', style: const TextStyle(fontSize: 15)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Amount: ${AppDateFormatter.formatCurrency(bill.totalAmount)}', style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),

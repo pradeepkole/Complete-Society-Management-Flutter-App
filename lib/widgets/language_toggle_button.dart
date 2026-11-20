@@ -8,7 +8,7 @@ class LanguageToggleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final langProvider = Provider.watch<LanguageProvider>(context);
+    final langProvider = Provider.of<LanguageProvider>(context);
     final isMarathi = langProvider.isMarathi;
 
     return InkWell(

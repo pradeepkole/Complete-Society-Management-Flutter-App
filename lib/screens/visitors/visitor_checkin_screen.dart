@@ -37,7 +37,7 @@ class _VisitorCheckinScreenState extends State<VisitorCheckinScreen> {
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Visitor Name
               Text(lang.tr('visitorName'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -72,7 +72,7 @@ class _VisitorCheckinScreenState extends State<VisitorCheckinScreen> {
                   Expanded(
                     flex: 2,
                     child: Column(
-                      crossAxisAlignment: CrossAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(lang.tr('wing'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                         const SizedBox(height: 6),
@@ -94,7 +94,7 @@ class _VisitorCheckinScreenState extends State<VisitorCheckinScreen> {
                   Expanded(
                     flex: 3,
                     child: Column(
-                      crossAxisAlignment: CrossAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(lang.tr('visitingFlat'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                         const SizedBox(height: 6),

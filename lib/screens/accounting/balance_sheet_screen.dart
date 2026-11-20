@@ -61,7 +61,7 @@ class _BalanceSheetScreenState extends State<BalanceSheetScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Net Society Balance Hero Banner
             Container(
@@ -82,7 +82,7 @@ class _BalanceSheetScreenState extends State<BalanceSheetScreen> {
                 ],
               ),
               child: Column(
-                crossAxisAlignment: CrossAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -120,7 +120,7 @@ class _BalanceSheetScreenState extends State<BalanceSheetScreen> {
                           const Icon(Icons.account_balance, color: Colors.white70, size: 16),
                           const SizedBox(width: 6),
                           Column(
-                            crossAxisAlignment: CrossAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(lang.tr('bankBalance'), style: const TextStyle(fontSize: 10, color: Colors.white70)),
                               Text(
@@ -136,7 +136,7 @@ class _BalanceSheetScreenState extends State<BalanceSheetScreen> {
                           const Icon(Icons.payments, color: Colors.white70, size: 16),
                           const SizedBox(width: 6),
                           Column(
-                            crossAxisAlignment: CrossAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(lang.tr('cashBalance'), style: const TextStyle(fontSize: 10, color: Colors.white70)),
                               Text(
@@ -188,7 +188,7 @@ class _BalanceSheetScreenState extends State<BalanceSheetScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
-                    crossAxisAlignment: CrossAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         lang.tr('incomeVsExpense'),
@@ -327,7 +327,7 @@ class _BalanceSheetScreenState extends State<BalanceSheetScreen> {
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               '${isIncome ? '+' : '-'}${AppDateFormatter.formatCurrency(entry.amount)}',
@@ -358,7 +358,7 @@ class _BalanceSheetScreenState extends State<BalanceSheetScreen> {
         title: Text(lang.isMarathi ? entry.titleMr : entry.title, style: const TextStyle(fontSize: 15)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${lang.tr('voucherNo')}: ${entry.voucherNo}'),
             Text('${lang.tr('amount')}: ${AppDateFormatter.formatCurrency(entry.amount)}'),

@@ -24,7 +24,7 @@ class GuardDashboardTab extends StatelessWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Security Guard Gate Banner
           Container(
@@ -47,7 +47,7 @@ class GuardDashboardTab extends StatelessWidget {
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         lang.isMarathi ? 'मुख्य सुरक्षा गेट (Gate 1)' : 'Main Security Gate #1',
@@ -193,7 +193,7 @@ class GuardDashboardTab extends StatelessWidget {
               border: Border.all(color: Colors.red.shade200),
             ),
             child: Column(
-              crossAxisAlignment: CrossAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [

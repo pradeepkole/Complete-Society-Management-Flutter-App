@@ -126,7 +126,7 @@ class _VisitorLogScreenState extends State<VisitorLogScreen> {
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
-          crossAxisAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -143,7 +143,7 @@ class _VisitorLogScreenState extends State<VisitorLogScreen> {
                     ),
                     const SizedBox(width: 10),
                     Column(
-                      crossAxisAlignment: CrossAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           visitor.visitorName,

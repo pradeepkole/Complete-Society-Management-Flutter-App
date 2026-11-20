@@ -34,7 +34,7 @@ class MemberTransparencyScreen extends StatelessWidget {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Transparency Banner
             Container(
@@ -50,7 +50,7 @@ class MemberTransparencyScreen extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           lang.isMarathi ? '१००% पारदर्शक सोसायटी हिशोब' : '100% Transparent Financials',
@@ -125,7 +125,7 @@ class MemberTransparencyScreen extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
-                    crossAxisAlignment: CrossAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         lang.tr('incomeVsExpense'),
@@ -208,7 +208,7 @@ class MemberTransparencyScreen extends StatelessWidget {
                     ),
                     trailing: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
                           AppDateFormatter.formatCurrency(entry.amount),
@@ -249,7 +249,7 @@ class MemberTransparencyScreen extends StatelessWidget {
         title: Text(lang.isMarathi ? entry.titleMr : entry.title, style: const TextStyle(fontSize: 15)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Voucher No: ${entry.voucherNo}'),
             Text('Amount: ${AppDateFormatter.formatCurrency(entry.amount)}'),

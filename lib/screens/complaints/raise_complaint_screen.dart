@@ -39,7 +39,7 @@ class _RaiseComplaintScreenState extends State<RaiseComplaintScreen> {
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Flat badge
               Container(

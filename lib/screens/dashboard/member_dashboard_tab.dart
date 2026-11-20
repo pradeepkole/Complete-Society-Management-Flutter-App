@@ -34,7 +34,7 @@ class MemberDashboardTab extends StatelessWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Flat Member Profile Card
           Container(
@@ -60,7 +60,7 @@ class MemberDashboardTab extends StatelessWidget {
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         '${lang.tr('flat')} $flatNumber',
@@ -100,7 +100,7 @@ class MemberDashboardTab extends StatelessWidget {
                 border: Border.all(color: Colors.amber.shade400, width: 1.5),
               ),
               child: Column(
-                crossAxisAlignment: CrossAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
@@ -159,7 +159,7 @@ class MemberDashboardTab extends StatelessWidget {
                 ],
               ),
               child: Column(
-                crossAxisAlignment: CrossAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -233,7 +233,7 @@ class MemberDashboardTab extends StatelessWidget {
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           lang.isMarathi ? 'मासिक देखभाल भरली आहे!' : 'Maintenance Up-to-Date!',
@@ -289,7 +289,7 @@ class MemberDashboardTab extends StatelessWidget {
                       ),
                       const SizedBox(width: 12),
                       Column(
-                        crossAxisAlignment: CrossAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             lang.tr('transparencyDashboard'),

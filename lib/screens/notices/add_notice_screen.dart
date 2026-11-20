@@ -37,7 +37,7 @@ class _AddNoticeScreenState extends State<AddNoticeScreen> {
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Notice Category & Priority
               Row(

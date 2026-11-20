@@ -43,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Column(
-            crossAxisAlignment: CrossAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header Language Switcher
               Row(
@@ -196,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Expanded(
                         flex: 2,
                         child: Column(
-                          crossAxisAlignment: CrossAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(lang.tr('wing'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 6),
@@ -208,7 +208,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Expanded(
                         flex: 3,
                         child: Column(
-                          crossAxisAlignment: CrossAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(lang.tr('flat'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 6),
@@ -411,7 +411,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: Border.all(color: Colors.amber.shade300),
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [

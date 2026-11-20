@@ -191,7 +191,7 @@ class AuditExportService {
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Column(
-                  crossAxisAlignment: pw.CrossAlignment.start,
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text('Prepared by:', style: const pw.TextStyle(fontSize: 9)),
                     pw.SizedBox(height: 24),
@@ -199,7 +199,7 @@ class AuditExportService {
                   ],
                 ),
                 pw.Column(
-                  crossAxisAlignment: pw.CrossAlignment.center,
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
                     pw.Text('Approved by:', style: const pw.TextStyle(fontSize: 9)),
                     pw.SizedBox(height: 24),
@@ -207,7 +207,7 @@ class AuditExportService {
                   ],
                 ),
                 pw.Column(
-                  crossAxisAlignment: pw.CrossAlignment.end,
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
                     pw.Text('Audited by:', style: const pw.TextStyle(fontSize: 9)),
                     pw.SizedBox(height: 24),

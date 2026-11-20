@@ -35,7 +35,7 @@ class AdminDashboardTab extends StatelessWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Admin Welcome Card
           Container(
@@ -49,7 +49,7 @@ class AdminDashboardTab extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
-              crossAxisAlignment: CrossAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
