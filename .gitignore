@@ -41,3 +41,8 @@ migrate_working_dir/
 
 # Coverage
 coverage/
+
+# Built binaries
+*.apk
+*.aab
+
