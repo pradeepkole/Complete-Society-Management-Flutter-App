@@ -30,7 +30,7 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Setup Android Gradle Wrapper
+      - name: Setup Android Gradle Wrapper and Resources
         run: |
           flutter create --org com.society --project-name temp_scaffold /tmp/temp_scaffold
           mkdir -p android/gradle/wrapper
@@ -38,8 +38,10 @@ jobs:
           cp /tmp/temp_scaffold/android/gradlew android/
           cp /tmp/temp_scaffold/android/gradlew.bat android/
           chmod +x android/gradlew
-          echo "Gradle wrapper files successfully configured:"
+          cp -r /tmp/temp_scaffold/android/app/src/main/res/mipmap* android/app/src/main/res/
+          echo "Gradle wrapper and Android resources successfully configured:"
           ls -la android/gradlew android/gradle/wrapper/
+          ls -la android/app/src/main/res/
 
       - name: Install Dependencies
         run: flutter pub get
