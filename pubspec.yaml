@@ -1,0 +1,52 @@
+name: society_gate
+description: "Apartment Housing Society Management App with Bilingual Marathi and English UI, Firebase Backend, Maintenance Billing, Dynamic UPI QR, Society Accounting, and Security."
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management & Architecture
+  provider: ^6.1.2
+  
+  # Google Firebase
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+  firebase_storage: ^12.3.2
+
+  # UPI & Payments
+  qr_flutter: ^4.1.0
+  url_launcher: ^6.3.0
+
+  # PDF Generation, Receipts & Audit Export
+  pdf: ^3.11.1
+  printing: ^5.13.2
+  csv: ^6.0.0
+  path_provider: ^2.1.4
+  share_plus: ^10.0.2
+
+  # Charts & Visualizations for Transparency
+  fl_chart: ^0.69.0
+
+  # Localization & Utilities
+  intl: ^0.19.0
+  uuid: ^4.5.1
+  google_fonts: ^6.2.1
+
+  # File & Image Picking (for Bill uploads / Visitor Photos)
+  image_picker: ^1.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/

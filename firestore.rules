@@ -1,0 +1,105 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isSocietyAdmin() {
+      return isAuthenticated() && getUserData().role == 'admin';
+    }
+    
+    function isGuard() {
+      return isAuthenticated() && getUserData().role == 'guard';
+    }
+    
+    function isFlatMember(flatNumber) {
+      return isAuthenticated() && getUserData().flatNumber == flatNumber;
+    }
+
+    // Societies collection
+    match /societies/{societyId} {
+      allow read: if isAuthenticated();
+      allow write: if isSocietyAdmin();
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (request.auth.uid == userId || isSocietyAdmin());
+    }
+
+    // Maintenance Bills
+    match /bills/{billId} {
+      // Admins can read/write all bills. Members can read their own flat's bills.
+      allow read: if isAuthenticated() && (
+        isSocietyAdmin() || 
+        resource.data.flatNumber == getUserData().flatNumber
+      );
+      allow create, update, delete: if isSocietyAdmin();
+      // Member can update bill ONLY to record payment reference
+      allow update: if isAuthenticated() && 
+        resource.data.flatNumber == getUserData().flatNumber &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paidAt', 'paymentRef']);
+    }
+
+    // Payment transactions
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && (
+        isSocietyAdmin() || 
+        resource.data.flatNumber == getUserData().flatNumber
+      );
+      allow create: if isAuthenticated();
+      allow update, delete: if isSocietyAdmin();
+    }
+
+    // Accounting General Ledger
+    // Core Transparency Rule: All society members can READ accounting ledger entries!
+    match /accounting_ledger/{ledgerId} {
+      allow read: if isAuthenticated();
+      allow write: if isSocietyAdmin();
+    }
+
+    // Notices / Circulars
+    match /notices/{noticeId} {
+      allow read: if isAuthenticated();
+      allow write: if isSocietyAdmin();
+    }
+
+    // Complaints Helpdesk
+    match /complaints/{complaintId} {
+      allow read: if isAuthenticated() && (
+        isSocietyAdmin() || 
+        resource.data.flatNumber == getUserData().flatNumber
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isSocietyAdmin() || 
+        resource.data.flatNumber == getUserData().flatNumber
+      );
+      allow delete: if isSocietyAdmin();
+    }
+
+    // Visitor Entry Log
+    match /visitors/{visitorId} {
+      // Guards and Admins can read all; Members can read visitors targeted to their flat
+      allow read: if isAuthenticated() && (
+        isSocietyAdmin() || 
+        isGuard() || 
+        resource.data.targetFlat == getUserData().flatNumber
+      );
+      allow create, update: if isGuard() || isSocietyAdmin();
+      // Flat member can approve / deny visitor request
+      allow update: if isAuthenticated() && 
+        resource.data.targetFlat == getUserData().flatNumber &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberApproval']);
+      allow delete: if isSocietyAdmin();
+    }
+  }
+}

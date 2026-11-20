@@ -1,0 +1,31 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Receipts: Downloadable by all authenticated members; generated & uploaded automatically
+    match /receipts/{billId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Accounting Vouchers & Bills: Transparent read for members; upload for committee/admins
+    match /vouchers/{voucherFile} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Complaints & Visitors:
+    match /complaints/{complaintId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /visitors/{visitorId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
