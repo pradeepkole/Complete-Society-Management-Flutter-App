@@ -43,7 +43,7 @@ android {
 
     defaultConfig {
         applicationId "com.society.housing_society_app"
-        minSdkVersion 21
+        minSdkVersion 23
         targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
