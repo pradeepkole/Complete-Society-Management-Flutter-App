@@ -631,6 +631,8 @@ class CommitteeDirectoryScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
   void _showExtendTenureModal(BuildContext context, AuthProvider auth, bool isMr) {
     int additionalMonths = 3;
     showDialog(
