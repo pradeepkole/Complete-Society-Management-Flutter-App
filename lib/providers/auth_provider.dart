@@ -1,17 +1,27 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
-import '../services/firebase_service.dart';
+import '../models/society_model.dart';
 import '../services/firestore_service.dart';
 
+enum AuthStatus {
+  unauthenticated,
+  authenticating,
+  needsOnboarding, // Logged into Google, but hasn't created or joined a society
+  pendingApproval, // Waiting for society admin to approve membership
+  authenticated,   // Fully approved and active in a society
+}
+
 class AuthProvider extends ChangeNotifier {
-  final FirebaseService _fallbackService = FirebaseService.instance;
   final FirestoreService _firestoreService = FirestoreService.instance;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   AppUser? _currentUser;
+  SocietyModel? _currentSociety;
+  AuthStatus _status = AuthStatus.unauthenticated;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -22,8 +32,12 @@ class AuthProvider extends ChangeNotifier {
   }
 
   AppUser? get currentUser => _currentUser;
+  SocietyModel? get currentSociety => _currentSociety;
+  AuthStatus get status => _status;
   bool get isLoading => _isLoading;
-  bool get isAuthenticated => _currentUser != null;
+  bool get isAuthenticated => _status == AuthStatus.authenticated && _currentUser != null && _currentSociety != null;
+  bool get needsOnboarding => _status == AuthStatus.needsOnboarding;
+  bool get isPendingApproval => _status == AuthStatus.pendingApproval;
   String? get errorMessage => _errorMessage;
   String? get phoneVerificationId => _phoneVerificationId;
 
@@ -33,234 +47,325 @@ class AuthProvider extends ChangeNotifier {
 
   void _initAuthState() {
     try {
-      _firestoreService.initializeSocietyDefaults();
-
-      _firebaseAuth.authStateChanges().listen((User? user) async {
-        if (user != null) {
-          await _loadUserProfile(user.uid, user.email ?? user.phoneNumber ?? '');
+      _firebaseAuth.authStateChanges().listen((User? firebaseUser) async {
+        if (firebaseUser != null) {
+          await _handleFirebaseUser(firebaseUser);
         } else {
-          if (_currentUser == null) {
-            _currentUser = _fallbackService.users.firstWhere((u) => u.role == 'admin');
-            notifyListeners();
-          }
+          _currentUser = null;
+          _currentSociety = null;
+          _status = AuthStatus.unauthenticated;
+          notifyListeners();
         }
       });
-    } catch (_) {
-      _currentUser = _fallbackService.users.firstWhere((u) => u.role == 'admin');
+    } catch (e) {
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
     }
   }
 
-  Future<void> _loadUserProfile(String uid, String identifier) async {
+  Future<void> _handleFirebaseUser(User firebaseUser) async {
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      final user = await _firestoreService.getUserProfile(uid);
-      if (user != null) {
-        _currentUser = user;
-      } else {
+      final userDoc = await _firestoreService.getUser(firebaseUser.uid);
+
+      if (userDoc == null || userDoc.societyId.isEmpty) {
+        // User is logged into Google, but not linked to any society yet
         _currentUser = AppUser(
-          uid: uid,
-          name: identifier.contains('@') ? identifier.split('@').first : identifier,
-          nameMr: identifier.contains('@') ? identifier.split('@').first : identifier,
-          phoneNumber: identifier.startsWith('+') ? identifier : '',
-          email: identifier.contains('@') ? identifier : '',
+          uid: firebaseUser.uid,
+          name: firebaseUser.displayName ?? (firebaseUser.email?.split('@').first ?? 'User'),
+          nameMr: firebaseUser.displayName ?? (firebaseUser.email?.split('@').first ?? 'वापरकर्ता'),
+          email: firebaseUser.email ?? '',
+          phoneNumber: firebaseUser.phoneNumber ?? '',
+          photoUrl: firebaseUser.photoURL,
           role: 'member',
-          residentType: 'owner',
-          flatNumber: 'A-402',
-          wing: 'A',
-          societyId: FirestoreService.currentSocietyId,
+          societyId: '',
+          isApproved: false,
         );
+        _currentSociety = null;
+        _status = AuthStatus.needsOnboarding;
+      } else {
+        _currentUser = userDoc;
+
+        if (!userDoc.isApproved) {
+          // Joined a society but pending secretary approval
+          _status = AuthStatus.pendingApproval;
+          _currentSociety = await _firestoreService.getSociety(userDoc.societyId);
+        } else {
+          // Approved active user
+          _currentSociety = await _firestoreService.getSociety(userDoc.societyId);
+          _firestoreService.activeSocietyId = userDoc.societyId;
+          _status = AuthStatus.authenticated;
+        }
       }
-      notifyListeners();
-    } catch (_) {
-      _currentUser = _fallbackService.users.firstWhere((u) => u.email == identifier, orElse: () => _fallbackService.users.first);
-      notifyListeners();
-    }
-  }
-
-  // --- Email & Password Authentication ---
-  Future<bool> signInWithEmailPassword({
-    required String email,
-    required String password,
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final credential = await _firebaseAuth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password.trim(),
-      );
-
-      if (credential.user != null) {
-        await _loadUserProfile(credential.user!.uid, credential.user!.email ?? email);
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      }
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = e.message ?? 'Authentication failed';
-    } catch (e) {
-      final match = _fallbackService.users.firstWhere(
-        (u) => u.email.toLowerCase() == email.trim().toLowerCase(),
-        orElse: () => _fallbackService.users.first,
-      );
-      _currentUser = match;
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    }
-
-    _isLoading = false;
-    notifyListeners();
-    return false;
-  }
-
-  Future<bool> registerWithEmailPassword({
-    required String email,
-    required String password,
-    required String name,
-    required String role,
-    required String flatNumber,
-    required String wing,
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final credential = await _firebaseAuth.createUserWithEmailAndPassword(
-        email: email.trim(),
-        password: password.trim(),
-      );
-
-      if (credential.user != null) {
-        final uid = credential.user!.uid;
-        final newUser = AppUser(
-          uid: uid,
-          name: name,
-          nameMr: name,
-          phoneNumber: '',
-          email: email.trim(),
-          role: role,
-          residentType: 'owner',
-          flatNumber: flatNumber,
-          wing: wing,
-          societyId: FirestoreService.currentSocietyId,
-        );
-
-        await _firestoreService.saveUserProfile(newUser);
-        _currentUser = newUser;
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      }
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = e.message ?? 'Registration failed';
     } catch (e) {
       _errorMessage = e.toString();
-    }
-
-    _isLoading = false;
-    notifyListeners();
-    return false;
-  }
-
-  // --- Phone OTP Authentication ---
-  Future<void> sendPhoneOtp({
-    required String phoneNumber,
-    required Function(String verificationId) onCodeSent,
-    required Function(String error) onError,
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      await _firebaseAuth.verifyPhoneNumber(
-        phoneNumber: phoneNumber.trim(),
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          final userCred = await _firebaseAuth.signInWithCredential(credential);
-          if (userCred.user != null) {
-            await _loadUserProfile(userCred.user!.uid, phoneNumber);
-          }
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          _errorMessage = e.message;
-          _isLoading = false;
-          notifyListeners();
-          onError(e.message ?? 'Phone verification failed');
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          _phoneVerificationId = verificationId;
-          _isLoading = false;
-          notifyListeners();
-          onCodeSent(verificationId);
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          _phoneVerificationId = verificationId;
-        },
-      );
-    } catch (e) {
+      _status = AuthStatus.unauthenticated;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      onError(e.toString());
     }
   }
 
-  Future<bool> verifyPhoneOtpAndSignIn({
-    required String verificationId,
-    required String smsCode,
-    String? role,
-  }) async {
+  /// 1-Click Primary Sign-In with Google
+  Future<bool> signInWithGoogle() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: verificationId,
-        smsCode: smsCode.trim(),
-      );
-
-      final userCred = await _firebaseAuth.signInWithCredential(credential);
-      if (userCred.user != null) {
-        await _loadUserProfile(userCred.user!.uid, userCred.user!.phoneNumber ?? '');
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
         _isLoading = false;
         notifyListeners();
+        return false; // User cancelled Google prompt
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential = await _firebaseAuth.signInWithCredential(credential);
+      if (userCredential.user != null) {
+        await _handleFirebaseUser(userCredential.user!);
         return true;
       }
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = e.message ?? 'Invalid OTP code';
+      return false;
     } catch (e) {
-      _errorMessage = e.toString();
-    }
-
-    _isLoading = false;
-    notifyListeners();
-    return false;
-  }
-
-  Future<bool> sendPasswordReset(String email) async {
-    try {
-      await _firebaseAuth.sendPasswordResetEmail(email: email.trim());
-      return true;
-    } catch (_) {
+      // Offline / Developer fallback if Google Play Services is unavailable
+      _errorMessage = 'Google Sign-In: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
       return false;
     }
   }
 
-  void switchRole(String role) {
-    try {
-      _currentUser = _fallbackService.users.firstWhere((u) => u.role == role);
-      notifyListeners();
-    } catch (_) {}
+  /// Guest / Demo Quick-Login for Testing without Google account
+  Future<void> signInAsDemoUser({String role = 'admin'}) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final demoSociety = SocietyModel(
+      id: 'soc_demo_trial',
+      societyCode: 'SOC-999999',
+      name: 'Sample Housing Society',
+      nameMr: 'नमुना गृहनिर्माण संस्था',
+      address: 'Plot 10, MG Road, Pune',
+      city: 'Pune',
+      pincode: '411001',
+      wings: ['A', 'B'],
+      totalFlats: 30,
+      adminUid: 'usr_demo_admin',
+    );
+
+    _currentSociety = demoSociety;
+    _firestoreService.activeSocietyId = demoSociety.id;
+
+    _currentUser = AppUser(
+      uid: role == 'admin' ? 'usr_demo_admin' : 'usr_demo_member',
+      name: role == 'admin' ? 'Demo Admin (Secretary)' : 'Demo Resident',
+      nameMr: role == 'admin' ? 'डेमो सचिव' : 'डेमो सभासद',
+      email: role == 'admin' ? 'admin@demo.com' : 'resident@demo.com',
+      phoneNumber: '+919876543210',
+      role: role,
+      flatNumber: role == 'admin' ? 'A-101' : 'A-202',
+      wing: 'A',
+      societyId: demoSociety.id,
+      societyCode: demoSociety.societyCode,
+      isApproved: true,
+    );
+
+    _status = AuthStatus.authenticated;
+    _isLoading = false;
+    notifyListeners();
   }
 
-  Future<void> logout() async {
+  /// Register a brand new Society (Creator becomes Admin)
+  Future<bool> createNewSociety({
+    required String name,
+    required String nameMr,
+    required String address,
+    required String city,
+    required String pincode,
+    required String registrationNo,
+    required List<String> wings,
+    required int totalFlats,
+    Uint8List? logoBytes,
+  }) async {
+    if (_currentUser == null) return false;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
     try {
+      final society = await _firestoreService.createSociety(
+        name: name,
+        nameMr: nameMr,
+        address: address,
+        city: city,
+        pincode: pincode,
+        registrationNo: registrationNo,
+        wings: wings,
+        totalFlats: totalFlats,
+        adminUser: _currentUser!,
+        logoBytes: logoBytes,
+      );
+
+      _currentSociety = society;
+      _currentUser = _currentUser!.copyWith(
+        societyId: society.id,
+        societyCode: society.societyCode,
+        role: 'admin',
+        isApproved: true,
+      );
+
+      _status = AuthStatus.authenticated;
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Request to join an existing society using 6-digit Society Code
+  Future<bool> joinSocietyWithCode({
+    required String societyCode,
+    required String role,
+    required String wing,
+    required String flatNumber,
+    String? phoneNumber,
+  }) async {
+    if (_currentUser == null) return false;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final society = await _firestoreService.findSocietyByCode(societyCode);
+      if (society == null) {
+        _errorMessage = 'Invalid Society Code / अवैध सोसायटी कोड!';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      await _firestoreService.submitJoinRequest(
+        user: _currentUser!,
+        societyId: society.id,
+        societyCode: society.societyCode,
+        role: role,
+        wing: wing,
+        flatNumber: flatNumber,
+        phoneNumber: phoneNumber,
+      );
+
+      _currentSociety = society;
+      _currentUser = _currentUser!.copyWith(
+        societyId: society.id,
+        societyCode: society.societyCode,
+        role: role,
+        wing: wing,
+        flatNumber: flatNumber,
+        isApproved: false, // Awaiting admin approval
+      );
+
+      _status = AuthStatus.pendingApproval;
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Update society settings (Name, address, UPI ID, Bank, Logo)
+  Future<bool> updateSocietySettings({
+    String? name,
+    String? nameMr,
+    String? address,
+    String? city,
+    String? pincode,
+    String? upiId,
+    String? upiMerchantName,
+    String? bankName,
+    String? accountNo,
+    String? ifsc,
+    double? defaultMaintenanceAmount,
+    Uint8List? newLogoBytes,
+  }) async {
+    if (_currentSociety == null) return false;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final updated = await _firestoreService.updateSocietySettings(
+        currentSociety: _currentSociety!,
+        name: name,
+        nameMr: nameMr,
+        address: address,
+        city: city,
+        pincode: pincode,
+        upiId: upiId,
+        upiMerchantName: upiMerchantName,
+        bankName: bankName,
+        accountNo: accountNo,
+        ifsc: ifsc,
+        defaultMaintenanceAmount: defaultMaintenanceAmount,
+        newLogoBytes: newLogoBytes,
+      );
+
+      _currentSociety = updated;
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Refresh user profile and approval status from server
+  Future<void> refreshProfile() async {
+    if (_currentUser == null) return;
+    final user = await _firestoreService.getUser(_currentUser!.uid);
+    if (user != null) {
+      _currentUser = user;
+      if (user.isApproved && user.societyId.isNotEmpty) {
+        _currentSociety = await _firestoreService.getSociety(user.societyId);
+        _firestoreService.activeSocietyId = user.societyId;
+        _status = AuthStatus.authenticated;
+      } else if (!user.isApproved && user.societyId.isNotEmpty) {
+        _status = AuthStatus.pendingApproval;
+      }
+      notifyListeners();
+    }
+  }
+
+  /// Sign out
+  Future<void> signOut() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _googleSignIn.signOut();
       await _firebaseAuth.signOut();
     } catch (_) {}
     _currentUser = null;
+    _currentSociety = null;
+    _status = AuthStatus.unauthenticated;
+    _isLoading = false;
     notifyListeners();
   }
 }

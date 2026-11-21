@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
@@ -7,7 +8,6 @@ import '../models/ledger_entry_model.dart';
 import '../models/notice_model.dart';
 import '../models/complaint_model.dart';
 import '../models/visitor_model.dart';
-import '../utils/constants.dart';
 import 'firebase_storage_service.dart';
 
 class FirestoreService {
@@ -17,7 +17,7 @@ class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseStorageService _storage = FirebaseStorageService.instance;
 
-  static const String currentSocietyId = 'society-6ad99';
+  String? activeSocietyId;
 
   // Collection References
   CollectionReference<Map<String, dynamic>> get societiesRef => _db.collection('societies');
@@ -28,130 +28,225 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>> get complaintsRef => _db.collection('complaints');
   CollectionReference<Map<String, dynamic>> get visitorsRef => _db.collection('visitors');
 
-  /// Automatically bootstraps starter society profile and documents in live Firestore if empty
-  Future<void> initializeSocietyDefaults() async {
-    try {
-      final socDoc = await societiesRef.doc(currentSocietyId).get();
-      if (!socDoc.exists) {
-        final initialSociety = SocietyModel(
-          id: currentSocietyId,
-          name: AppConstants.defaultSocietyNameEn,
-          nameMr: AppConstants.defaultSocietyNameMr,
-          registrationNo: AppConstants.defaultRegistrationNo,
-          address: 'Plot 42, Senapati Bapat Marg, Dadar West, Mumbai - 400028',
-          upiId: AppConstants.defaultSocietyUpiId,
-          upiMerchantName: AppConstants.defaultSocietyUpiName,
-          bankName: 'State Bank of India (Dadar West)',
-          accountNo: '380597262688',
-          ifsc: 'SBIN0001234',
-          defaultMaintenanceAmount: 2500,
-          totalFlats: 72,
-        );
-        await societiesRef.doc(currentSocietyId).set(initialSociety.toMap());
+  // =======================================================
+  // MULTI-TENANT ONBOARDING & SOCIETY MANAGEMENT
+  // =======================================================
 
-        // Bootstrap sample ledger
-        final sampleLedgers = [
-          LedgerEntry(
-            id: 'LED-INIT-001',
-            societyId: currentSocietyId,
-            transactionDate: DateTime.now().subtract(const Duration(days: 2)),
-            type: 'expense',
-            category: 'cat_security_salary',
-            title: 'Security Agency Monthly Salary',
-            titleMr: 'सुरक्षा रक्षक एजन्सी मासिक वेतन',
-            amount: 38000,
-            paymentMode: 'bank',
-            voucherNo: 'PV-2026-11-001',
-            vendorName: 'Tiger Security Guard Services',
-            recordedByUid: 'admin',
-          ),
-          LedgerEntry(
-            id: 'LED-INIT-002',
-            societyId: currentSocietyId,
-            transactionDate: DateTime.now().subtract(const Duration(days: 4)),
-            type: 'expense',
-            category: 'cat_common_electricity',
-            title: 'MSEDCL Common Meter Electricity Bill',
-            titleMr: 'महावितरण सामायिक वीज बिल',
-            amount: 14850,
-            paymentMode: 'bank',
-            voucherNo: 'PV-2026-11-002',
-            vendorName: 'MSEDCL Mumbai',
-            recordedByUid: 'admin',
-          ),
-          LedgerEntry(
-            id: 'LED-INIT-003',
-            societyId: currentSocietyId,
-            transactionDate: DateTime.now().subtract(const Duration(days: 1)),
-            type: 'income',
-            category: 'cat_maintenance_collection',
-            title: 'Maintenance Collection - Flat B-201',
-            titleMr: 'मासिक देखभाल वर्गणी - B-201',
-            amount: 3350,
-            paymentMode: 'upi',
-            voucherNo: 'RV-2026-11-021',
-            vendorName: 'Sunil Patil',
-            recordedByUid: 'auto_upi',
-          ),
-        ];
+  /// Creates a new society with optional logo and assigns creator as Admin
+  Future<SocietyModel> createSociety({
+    required String name,
+    required String nameMr,
+    required String address,
+    required String city,
+    required String pincode,
+    required String registrationNo,
+    required List<String> wings,
+    required int totalFlats,
+    required AppUser adminUser,
+    Uint8List? logoBytes,
+  }) async {
+    final societyId = 'soc_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(999)}';
+    
+    // Generate 6-digit unique join code (e.g. SOC-849201)
+    final randomDigits = (100000 + Random().nextInt(900000)).toString();
+    final societyCode = 'SOC-$randomDigits';
 
-        for (var l in sampleLedgers) {
-          await ledgerRef.doc(l.id).set(l.toMap());
-        }
+    String? logoUrl;
+    if (logoBytes != null && logoBytes.isNotEmpty) {
+      logoUrl = await _storage.uploadSocietyLogo(
+        societyId: societyId,
+        imageBytes: logoBytes,
+      );
+    }
 
-        // Bootstrap sample notices
-        final sampleNotice = NoticeModel(
-          id: 'NOT-INIT-01',
-          societyId: currentSocietyId,
-          title: 'Annual General Meeting (AGM) Notice',
-          titleMr: 'वार्षिक सर्वसाधारण सभा (AGM) सूचना',
-          content: 'The Annual General Meeting of Shivaji Park CHS will be held in the Society Clubhouse. All members are requested to attend.',
-          contentMr: 'शिवाजी पार्क हौसिंग सोसायटीची वार्षिक सर्वसाधारण सभा सोसायटी क्लबहाऊसमध्ये आयोजित करण्यात आली आहे.',
-          category: 'meeting_agm',
-          priority: 'urgent',
-          publishedDate: DateTime.now(),
-          issuedByName: 'Hon. Secretary',
-        );
-        await noticesRef.doc(sampleNotice.id).set(sampleNotice.toMap());
-      }
-    } catch (_) {}
+    final society = SocietyModel(
+      id: societyId,
+      societyCode: societyCode,
+      name: name,
+      nameMr: nameMr.isNotEmpty ? nameMr : name,
+      address: address,
+      city: city,
+      pincode: pincode,
+      registrationNo: registrationNo,
+      wings: wings.isNotEmpty ? wings : ['A', 'B'],
+      totalFlats: totalFlats > 0 ? totalFlats : 40,
+      logoUrl: logoUrl,
+      adminUid: adminUser.uid,
+      defaultMaintenanceAmount: 2000,
+      createdAt: DateTime.now(),
+    );
+
+    await societiesRef.doc(societyId).set(society.toMap());
+
+    // Update admin user document with admin role & approved status
+    final updatedAdmin = adminUser.copyWith(
+      societyId: societyId,
+      societyCode: societyCode,
+      role: 'admin',
+      isApproved: true,
+    );
+    await usersRef.doc(adminUser.uid).set(updatedAdmin.toMap());
+
+    activeSocietyId = societyId;
+    return society;
   }
 
-  // ==========================================
-  // MODULE 1: USERS & AUTHENTICATION (LIVE)
-  // ==========================================
-  Future<AppUser?> getUserProfile(String uid) async {
-    try {
-      final doc = await usersRef.doc(uid).get();
-      if (doc.exists && doc.data() != null) {
-        return AppUser.fromMap(doc.data()!, uid);
-      }
-    } catch (_) {}
-    return null;
+  /// Update society settings (Name, address, UPI ID, Bank, Logo)
+  Future<SocietyModel> updateSocietySettings({
+    required SocietyModel currentSociety,
+    String? name,
+    String? nameMr,
+    String? address,
+    String? city,
+    String? pincode,
+    String? upiId,
+    String? upiMerchantName,
+    String? bankName,
+    String? accountNo,
+    String? ifsc,
+    double? defaultMaintenanceAmount,
+    Uint8List? newLogoBytes,
+  }) async {
+    String? logoUrl = currentSociety.logoUrl;
+    if (newLogoBytes != null && newLogoBytes.isNotEmpty) {
+      logoUrl = await _storage.uploadSocietyLogo(
+        societyId: currentSociety.id,
+        imageBytes: newLogoBytes,
+      );
+    }
+
+    final updated = currentSociety.copyWith(
+      name: name,
+      nameMr: nameMr,
+      address: address,
+      city: city,
+      pincode: pincode,
+      upiId: upiId,
+      upiMerchantName: upiMerchantName,
+      bankName: bankName,
+      accountNo: accountNo,
+      ifsc: ifsc,
+      defaultMaintenanceAmount: defaultMaintenanceAmount,
+      logoUrl: logoUrl,
+    );
+
+    await societiesRef.doc(currentSociety.id).set(updated.toMap(), SetOptions(merge: true));
+    return updated;
   }
 
-  Future<void> saveUserProfile(AppUser user) async {
+  /// Finds society by 6-digit societyCode
+  Future<SocietyModel?> findSocietyByCode(String code) async {
+    final query = await societiesRef
+        .where('societyCode', isEqualTo: code.trim().toUpperCase())
+        .limit(1)
+        .get();
+
+    if (query.docs.isEmpty) return null;
+    final doc = query.docs.first;
+    return SocietyModel.fromMap(doc.data(), doc.id);
+  }
+
+  /// Fetch society details by ID
+  Future<SocietyModel?> getSociety(String societyId) async {
+    final doc = await societiesRef.doc(societyId).get();
+    if (!doc.exists || doc.data() == null) return null;
+    return SocietyModel.fromMap(doc.data()!, doc.id);
+  }
+
+  // =======================================================
+  // USER & MEMBERSHIP MANAGEMENT
+  // =======================================================
+
+  /// Save or update user profile
+  Future<void> saveUser(AppUser user) async {
     await usersRef.doc(user.uid).set(user.toMap(), SetOptions(merge: true));
   }
 
-  // =======================================================
-  // MODULE 2: MAINTENANCE BILLING & PAYMENTS (LIVE FIRESTORE)
-  // =======================================================
-  Stream<List<MaintenanceBill>> streamAllBills() {
-    return billsRef
-        .orderBy('billYear', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map((d) => MaintenanceBill.fromMap(d.data(), d.id)).toList());
+  /// Fetch user profile by UID
+  Future<AppUser?> getUser(String uid) async {
+    final doc = await usersRef.doc(uid).get();
+    if (!doc.exists || doc.data() == null) return null;
+    return AppUser.fromMap(doc.data()!, doc.id);
   }
 
-  Stream<List<MaintenanceBill>> streamBillsForFlat(String flatNumber) {
-    return billsRef
-        .where('flatNumber', isEqualTo: flatNumber)
+  /// Submits a request to join an existing society (awaits admin approval)
+  Future<void> submitJoinRequest({
+    required AppUser user,
+    required String societyId,
+    required String societyCode,
+    required String role,
+    required String wing,
+    required String flatNumber,
+    String? phoneNumber,
+  }) async {
+    final joinRequest = user.copyWith(
+      societyId: societyId,
+      societyCode: societyCode,
+      role: role,
+      wing: wing,
+      flatNumber: flatNumber,
+      phoneNumber: phoneNumber ?? user.phoneNumber,
+      isApproved: false, // Must be approved by Admin
+    );
+
+    await usersRef.doc(user.uid).set(joinRequest.toMap(), SetOptions(merge: true));
+  }
+
+  /// Stream pending member join requests for admin approval
+  Stream<List<AppUser>> streamPendingApprovals(String societyId) {
+    return usersRef
+        .where('societyId', isEqualTo: societyId)
+        .where('isApproved', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((d) => AppUser.fromMap(d.data(), d.id)).toList());
+  }
+
+  /// Admin approves pending member
+  Future<void> approveMember(String uid, {String? role, String? wing, String? flatNumber}) async {
+    final updates = <String, dynamic>{
+      'isApproved': true,
+      if (role != null) 'role': role,
+      if (wing != null) 'wing': wing,
+      if (flatNumber != null) 'flatNumber': flatNumber,
+    };
+    await usersRef.doc(uid).update(updates);
+  }
+
+  /// Admin rejects pending member
+  Future<void> rejectMember(String uid) async {
+    await usersRef.doc(uid).delete();
+  }
+
+  /// Stream all approved members of a society
+  Stream<List<AppUser>> streamSocietyMembers(String societyId) {
+    return usersRef
+        .where('societyId', isEqualTo: societyId)
+        .where('isApproved', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((d) => AppUser.fromMap(d.data(), d.id)).toList());
+  }
+
+  // =======================================================
+  // MODULE 2: MAINTENANCE BILLING & PAYMENTS
+  // =======================================================
+
+  Stream<List<MaintenanceBill>> streamMaintenanceBills({
+    required String societyId,
+    String? flatNumber,
+  }) {
+    Query<Map<String, dynamic>> query = billsRef.where('societyId', isEqualTo: societyId);
+
+    if (flatNumber != null && flatNumber.isNotEmpty) {
+      query = query.where('flatNumber', isEqualTo: flatNumber);
+    }
+
+    return query
         .snapshots()
         .map((snapshot) => snapshot.docs.map((d) => MaintenanceBill.fromMap(d.data(), d.id)).toList());
   }
 
   Future<void> generateMonthlyBillsBatch({
+    required String societyId,
     required int month,
     required int year,
     required double baseAmount,
@@ -159,30 +254,26 @@ class FirestoreService {
     required double repairFund,
     required double waterCharges,
     required DateTime dueDate,
+    required List<Map<String, String>> flats,
   }) async {
     final batch = _db.batch();
-    final testFlats = [
-      {'flat': 'A-101', 'wing': 'A', 'name': 'Anil Joshi'},
-      {'flat': 'A-201', 'wing': 'A', 'name': 'Deepak Sawant'},
-      {'flat': 'A-402', 'wing': 'A', 'name': 'Rajesh Arvind Deshmukh'},
-      {'flat': 'B-102', 'wing': 'B', 'name': 'Nitin More'},
-      {'flat': 'B-201', 'wing': 'B', 'name': 'Sunil Patil'},
-      {'flat': 'C-101', 'wing': 'C', 'name': 'Sanjay Shinde'},
-      {'flat': 'C-303', 'wing': 'C', 'name': 'Mahesh Kulkarni'},
-    ];
-
     final total = baseAmount + sinkingFund + repairFund + waterCharges;
 
-    for (var f in testFlats) {
-      final billId = 'BILL-$year-$month-${f['flat']!.replaceAll('-', '')}';
+    for (var f in flats) {
+      final flat = f['flat'] ?? '';
+      final wing = f['wing'] ?? '';
+      final name = f['name'] ?? 'Flat Member';
+      if (flat.isEmpty) continue;
+
+      final billId = 'BILL-$year-$month-${flat.replaceAll('-', '')}';
       final doc = billsRef.doc(billId);
 
       final bill = MaintenanceBill(
         id: billId,
-        societyId: currentSocietyId,
-        flatNumber: f['flat']!,
-        wing: f['wing']!,
-        memberName: f['name']!,
+        societyId: societyId,
+        flatNumber: flat,
+        wing: wing,
+        memberName: name,
         billMonth: month,
         billYear: year,
         maintenanceAmount: baseAmount,
@@ -200,7 +291,7 @@ class FirestoreService {
     await batch.commit();
   }
 
-  /// Atomically verify payment, upload receipt PDF to Storage, mark Paid, and credit Accounting Ledger
+  /// Complete payment, upload receipt PDF, and credit accounting ledger
   Future<void> completePaymentAndCreditLedger({
     required MaintenanceBill bill,
     required String paymentRef,
@@ -234,7 +325,7 @@ class FirestoreService {
     final ledgerDoc = ledgerRef.doc(ledgerId);
     final ledgerEntry = LedgerEntry(
       id: ledgerId,
-      societyId: currentSocietyId,
+      societyId: bill.societyId,
       transactionDate: DateTime.now(),
       type: 'income',
       category: 'cat_maintenance_collection',
@@ -255,13 +346,18 @@ class FirestoreService {
   }
 
   // =======================================================
-  // MODULE 3: SOCIETY ACCOUNTING & EXPENSES (LIVE FIRESTORE & STORAGE)
+  // MODULE 3: SOCIETY ACCOUNTING & EXPENSES
   // =======================================================
-  Stream<List<LedgerEntry>> streamLedgerEntries() {
+
+  Stream<List<LedgerEntry>> streamLedgerEntries(String societyId) {
     return ledgerRef
-        .orderBy('transactionDate', descending: true)
+        .where('societyId', isEqualTo: societyId)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((d) => LedgerEntry.fromMap(d.data(), d.id)).toList());
+        .map((snapshot) {
+          final list = snapshot.docs.map((d) => LedgerEntry.fromMap(d.data(), d.id)).toList();
+          list.sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
+          return list;
+        });
   }
 
   Future<void> recordLedgerEntry({
@@ -281,7 +377,7 @@ class FirestoreService {
 
     final entryWithDoc = LedgerEntry(
       id: entry.id,
-      societyId: currentSocietyId,
+      societyId: entry.societyId,
       transactionDate: entry.transactionDate,
       type: entry.type,
       category: entry.category,
@@ -301,24 +397,36 @@ class FirestoreService {
   }
 
   // =======================================================
-  // MODULE 4: CORE FEATURES (NOTICES, COMPLAINTS, VISITORS)
+  // MODULE 4: NOTICES, COMPLAINTS, VISITORS
   // =======================================================
-  Stream<List<NoticeModel>> streamNotices() {
+
+  Stream<List<NoticeModel>> streamNotices(String societyId) {
     return noticesRef
-        .orderBy('publishedDate', descending: true)
+        .where('societyId', isEqualTo: societyId)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((d) => NoticeModel.fromMap(d.data(), d.id)).toList());
+        .map((snapshot) {
+          final list = snapshot.docs.map((d) => NoticeModel.fromMap(d.data(), d.id)).toList();
+          list.sort((a, b) => b.publishedDate.compareTo(a.publishedDate));
+          return list;
+        });
   }
 
   Future<void> postNotice(NoticeModel notice) async {
     await noticesRef.doc(notice.id).set(notice.toMap());
   }
 
-  Stream<List<ComplaintModel>> streamComplaints() {
-    return complaintsRef
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map((d) => ComplaintModel.fromMap(d.data(), d.id)).toList());
+  Stream<List<ComplaintModel>> streamComplaints(String societyId, {String? flatNumber}) {
+    Query<Map<String, dynamic>> query = complaintsRef.where('societyId', isEqualTo: societyId);
+
+    if (flatNumber != null && flatNumber.isNotEmpty) {
+      query = query.where('flatNumber', isEqualTo: flatNumber);
+    }
+
+    return query.snapshots().map((snapshot) {
+      final list = snapshot.docs.map((d) => ComplaintModel.fromMap(d.data(), d.id)).toList();
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return list;
+    });
   }
 
   Future<void> addComplaint(ComplaintModel complaint) async {
@@ -333,11 +441,15 @@ class FirestoreService {
     });
   }
 
-  Stream<List<VisitorModel>> streamVisitors() {
+  Stream<List<VisitorModel>> streamVisitors(String societyId) {
     return visitorsRef
-        .orderBy('checkInTime', descending: true)
+        .where('societyId', isEqualTo: societyId)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((d) => VisitorModel.fromMap(d.data(), d.id)).toList());
+        .map((snapshot) {
+          final list = snapshot.docs.map((d) => VisitorModel.fromMap(d.data(), d.id)).toList();
+          list.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
+          return list;
+        });
   }
 
   Future<void> checkInVisitor(VisitorModel visitor) async {

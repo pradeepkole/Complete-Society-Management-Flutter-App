@@ -9,6 +9,9 @@ import 'providers/accounting_provider.dart';
 import 'providers/notice_provider.dart';
 import 'providers/complaint_provider.dart';
 import 'providers/visitor_provider.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/onboarding/society_choice_screen.dart';
+import 'screens/onboarding/pending_approval_screen.dart';
 import 'screens/dashboard/main_navigation_dashboard.dart';
 import 'utils/app_theme.dart';
 
@@ -20,7 +23,7 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   } catch (e) {
-    debugPrint('Firebase initialization: running in robust offline demo mode ($e)');
+    debugPrint('Firebase initialization note: $e');
   }
 
   runApp(const SocietyGateApp());
@@ -48,10 +51,44 @@ class SocietyGateApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             locale: langProvider.locale,
-            home: const MainNavigationDashboard(),
+            home: const AppRootGate(),
           );
         },
       ),
     );
+  }
+}
+
+class AppRootGate extends StatelessWidget {
+  const AppRootGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = Provider.of<AuthProvider>(context);
+
+    if (auth.isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    switch (auth.status) {
+      case AuthStatus.unauthenticated:
+        return const LoginScreen();
+      case AuthStatus.authenticating:
+        return const Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      case AuthStatus.needsOnboarding:
+        return const SocietyChoiceScreen();
+      case AuthStatus.pendingApproval:
+        return const PendingApprovalScreen();
+      case AuthStatus.authenticated:
+        return const MainNavigationDashboard();
+    }
   }
 }

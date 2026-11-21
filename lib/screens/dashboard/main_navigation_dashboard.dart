@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/billing_provider.dart';
+import '../../providers/accounting_provider.dart';
+import '../../providers/notice_provider.dart';
+import '../../providers/complaint_provider.dart';
+import '../../providers/visitor_provider.dart';
 import '../../l10n/language_provider.dart';
-import '../../utils/app_theme.dart';
 import '../../widgets/custom_app_bar.dart';
 import 'admin_dashboard_tab.dart';
 import 'member_dashboard_tab.dart';
@@ -15,6 +19,8 @@ import '../notices/notice_board_screen.dart';
 import '../complaints/complaints_screen.dart';
 import '../visitors/visitor_log_screen.dart';
 import '../auth/login_screen.dart';
+import '../onboarding/society_choice_screen.dart';
+import '../onboarding/pending_approval_screen.dart';
 
 class MainNavigationDashboard extends StatefulWidget {
   const MainNavigationDashboard({super.key});
@@ -27,12 +33,35 @@ class _MainNavigationDashboardState extends State<MainNavigationDashboard> {
   int _currentIndex = 0;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final auth = Provider.of<AuthProvider>(context);
+    final societyId = auth.currentSociety?.id;
+    if (societyId != null && societyId.isNotEmpty) {
+      Provider.of<BillingProvider>(context, listen: false).setSocietyId(societyId);
+      Provider.of<AccountingProvider>(context, listen: false).setSocietyId(societyId);
+      Provider.of<NoticeProvider>(context, listen: false).setSocietyId(societyId);
+      Provider.of<ComplaintProvider>(context, listen: false).setSocietyId(societyId);
+      Provider.of<VisitorProvider>(context, listen: false).setSocietyId(societyId);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final lang = Provider.of<LanguageProvider>(context);
     final auth = Provider.of<AuthProvider>(context);
 
-    if (!auth.isAuthenticated) {
+    // Route dynamically based on AuthStatus
+    if (auth.status == AuthStatus.unauthenticated || auth.currentUser == null) {
       return const LoginScreen();
+    }
+
+    if (auth.needsOnboarding) {
+      return const SocietyChoiceScreen();
+    }
+
+    if (auth.isPendingApproval) {
+      return const PendingApprovalScreen();
     }
 
     // Role-dependent tab pages and nav items
@@ -135,22 +164,14 @@ class _MainNavigationDashboardState extends State<MainNavigationDashboard> {
       ];
     }
 
-    // Guard against index out of range when switching role
     if (_currentIndex >= pages.length) {
       _currentIndex = 0;
     }
 
     return Scaffold(
-      appBar: CustomAppBar(
+      appBar: const CustomAppBar(
         showLanguageToggle: true,
-        showRolePicker: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white, size: 20),
-            tooltip: lang.tr('logout'),
-            onPressed: () => auth.logout(),
-          ),
-        ],
+        showSettings: true,
       ),
       body: IndexedStack(
         index: _currentIndex,

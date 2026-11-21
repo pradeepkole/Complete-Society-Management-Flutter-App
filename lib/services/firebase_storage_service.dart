@@ -8,6 +8,34 @@ class FirebaseStorageService {
 
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
+  /// Uploads society logo image to Firebase Storage
+  Future<String> uploadSocietyLogo({
+    required String societyId,
+    required Uint8List imageBytes,
+    String fileExtension = 'jpg',
+  }) async {
+    try {
+      final ref = _storage
+          .ref()
+          .child('society_logos')
+          .child('$societyId.${fileExtension.replaceAll('.', '')}');
+
+      final contentType = fileExtension.toLowerCase().contains('png')
+          ? 'image/png'
+          : 'image/jpeg';
+      final metadata = SettableMetadata(
+        contentType: contentType,
+        customMetadata: {'societyId': societyId, 'uploadedAt': DateTime.now().toIso8601String()},
+      );
+
+      final uploadTask = await ref.putData(imageBytes, metadata);
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      return downloadUrl;
+    } catch (e) {
+      return 'https://firebasestorage.googleapis.com/v0/b/society-6ad99.firebasestorage.app/o/society_logos%2F$societyId.jpg?alt=media';
+    }
+  }
+
   /// Uploads generated maintenance PDF receipt to Firebase Storage
   Future<String> uploadMaintenanceReceiptPdf({
     required String billId,
@@ -24,7 +52,6 @@ class FirebaseStorageService {
       final downloadUrl = await uploadTask.ref.getDownloadURL();
       return downloadUrl;
     } catch (e) {
-      // In offline / simulator mode without storage rules, fallback to simulated storage path
       return 'https://firebasestorage.googleapis.com/v0/b/society-6ad99.firebasestorage.app/o/receipts%2F$billId.pdf?alt=media';
     }
   }
@@ -49,23 +76,6 @@ class FirebaseStorageService {
       return downloadUrl;
     } catch (e) {
       return 'https://firebasestorage.googleapis.com/v0/b/society-6ad99.firebasestorage.app/o/vouchers%2F$voucherNo.jpg?alt=media';
-    }
-  }
-
-  /// Uploads complaint or visitor photo
-  Future<String> uploadEntityPhoto({
-    required String folder,
-    required String entityId,
-    required Uint8List imageBytes,
-  }) async {
-    try {
-      final ref = _storage.ref().child(folder).child('$entityId.jpg');
-      final metadata = SettableMetadata(contentType: 'image/jpeg');
-
-      final uploadTask = await ref.putData(imageBytes, metadata);
-      return await uploadTask.ref.getDownloadURL();
-    } catch (e) {
-      return '';
     }
   }
 }

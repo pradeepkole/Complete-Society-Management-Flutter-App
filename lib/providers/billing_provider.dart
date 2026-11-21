@@ -2,35 +2,31 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/maintenance_bill_model.dart';
-import '../services/firebase_service.dart';
 import '../services/firestore_service.dart';
 import '../services/upi_payment_service.dart';
 import '../services/pdf_receipt_service.dart';
 
 class BillingProvider extends ChangeNotifier {
-  final FirebaseService _fallbackService = FirebaseService.instance;
   final FirestoreService _firestoreService = FirestoreService.instance;
 
+  String? _societyId;
   List<MaintenanceBill> _bills = [];
   StreamSubscription<List<MaintenanceBill>>? _billsSubscription;
   bool _isProcessingPayment = false;
 
-  BillingProvider() {
-    _bills = List.from(_fallbackService.bills);
-    _initLiveFirestoreStream();
-  }
+  BillingProvider();
 
-  void _initLiveFirestoreStream() {
-    try {
-      _billsSubscription = _firestoreService.streamAllBills().listen((liveBills) {
-        if (liveBills.isNotEmpty) {
-          _bills = liveBills;
-          notifyListeners();
-        }
-      }, onError: (e) {
-        // Fallback to local service if firestore offline
-      });
-    } catch (_) {}
+  void setSocietyId(String societyId) {
+    if (_societyId == societyId) return;
+    _societyId = societyId;
+    _billsSubscription?.cancel();
+
+    _billsSubscription = _firestoreService
+        .streamMaintenanceBills(societyId: societyId)
+        .listen((liveBills) {
+      _bills = liveBills;
+      notifyListeners();
+    }, onError: (_) {});
   }
 
   @override
@@ -40,10 +36,10 @@ class BillingProvider extends ChangeNotifier {
   }
 
   bool get isProcessingPayment => _isProcessingPayment;
-  List<MaintenanceBill> get allBills => _bills.isNotEmpty ? _bills : _fallbackService.bills;
+  List<MaintenanceBill> get allBills => _bills;
 
   List<MaintenanceBill> getBillsForFlat(String flatNumber) {
-    return allBills.where((b) => b.flatNumber == flatNumber).toList();
+    return _bills.where((b) => b.flatNumber == flatNumber).toList();
   }
 
   MaintenanceBill? getLatestBillForFlat(String flatNumber) {
@@ -53,64 +49,21 @@ class BillingProvider extends ChangeNotifier {
     return flatBills.first;
   }
 
-  double getTotalPendingAmountForFlat(String flatNumber) {
-    return allBills
-        .where((b) => b.flatNumber == flatNumber && !b.isPaid)
+  double getTotalPendingAmount() {
+    return _bills
+        .where((b) => b.status == 'unpaid')
         .fold(0.0, (sum, b) => sum + b.totalAmount);
   }
 
-  String getDynamicUpiQrPayload(MaintenanceBill bill) {
-    return UpiPaymentService.generateUpiUri(
-      upiId: _fallbackService.activeSociety.upiId,
-      merchantName: _fallbackService.activeSociety.upiMerchantName,
-      amount: bill.totalAmount,
-      billId: bill.id,
-      flatNumber: bill.flatNumber,
-      monthYear: '${bill.billMonth}-${bill.billYear}',
-    );
+  double getTotalCollectedAmount() {
+    return _bills
+        .where((b) => b.status == 'paid')
+        .fold(0.0, (sum, b) => sum + b.totalAmount);
   }
 
-  /// Execute UPI payment (Deep link or scanned QR confirmation)
-  /// - Marks bill paid in live Firestore
-  /// - Uploads PDF receipt to live Firebase Storage
-  /// - Automatically credits live Society Accounting Ledger
-  Future<bool> processPayment({
-    required String billId,
-    required String paymentMode,
-    String? utrRef,
-  }) async {
-    _isProcessingPayment = true;
-    notifyListeners();
+  int getPendingCount() => _bills.where((b) => b.status == 'unpaid').length;
+  int getPaidCount() => _bills.where((b) => b.status == 'paid').length;
 
-    final bill = allBills.firstWhere((b) => b.id == billId);
-    final ref = utrRef ?? 'UPI-${DateTime.now().millisecondsSinceEpoch.toString().substring(4)}';
-
-    try {
-      // 1. Generate PDF receipt bytes
-      final pdfBytes = await getReceiptPdfBytes(bill);
-
-      // 2. Commit to live Firestore and Firebase Storage
-      await _firestoreService.completePaymentAndCreditLedger(
-        bill: bill,
-        paymentRef: ref,
-        paymentMode: paymentMode,
-        receiptPdfBytes: pdfBytes,
-      );
-    } catch (e) {
-      // Also record in local fallback service
-      await _fallbackService.recordMaintenancePayment(
-        billId: billId,
-        paymentRef: ref,
-        paymentMode: paymentMode,
-      );
-    }
-
-    _isProcessingPayment = false;
-    notifyListeners();
-    return true;
-  }
-
-  /// Generate Monthly Bills for all flats (Admin feature) in live Firestore
   Future<void> generateBillsForMonth({
     required int month,
     required int year,
@@ -119,46 +72,121 @@ class BillingProvider extends ChangeNotifier {
     required double repairFund,
     required double waterCharges,
     required DateTime dueDate,
+    String? societyId,
+    List<Map<String, String>>? flats,
   }) async {
-    try {
-      await _firestoreService.generateMonthlyBillsBatch(
-        month: month,
-        year: year,
-        baseAmount: baseAmount,
-        sinkingFund: sinkingFund,
-        repairFund: repairFund,
-        waterCharges: waterCharges,
-        dueDate: dueDate,
-      );
-    } catch (_) {
-      await _fallbackService.generateMonthlyBills(
-        month: month,
-        year: year,
-        baseAmount: baseAmount,
-        sinkingFund: sinkingFund,
-        repairFund: repairFund,
-        waterCharges: waterCharges,
-        dueDate: dueDate,
-      );
+    final targetSocietyId = societyId ?? _societyId;
+    if (targetSocietyId == null) return;
+
+    List<Map<String, String>> targetFlats = flats ?? [];
+    if (targetFlats.isEmpty) {
+      final society = await _firestoreService.getSociety(targetSocietyId);
+      final wings = society?.wings ?? ['A', 'B'];
+      final flatsPerWing = ((society?.totalFlats ?? 20) / wings.length).ceil();
+      for (var w in wings) {
+        for (int i = 1; i <= flatsPerWing; i++) {
+          final floor = (i - 1) ~/ 4 + 1;
+          final unit = (i - 1) % 4 + 1;
+          final flatNum = '$w-${floor}0$unit';
+          targetFlats.add({'flat': flatNum, 'wing': w, 'name': 'Resident $flatNum'});
+        }
+      }
     }
+
+    await _firestoreService.generateMonthlyBillsBatch(
+      societyId: targetSocietyId,
+      month: month,
+      year: year,
+      baseAmount: baseAmount,
+      sinkingFund: sinkingFund,
+      repairFund: repairFund,
+      waterCharges: waterCharges,
+      dueDate: dueDate,
+      flats: targetFlats,
+    );
+  }
+
+  Future<void> processPayment({
+    required String billId,
+    required String paymentMode,
+    required String utrRef,
+  }) async {
+    final bill = _bills.firstWhere((b) => b.id == billId);
+    await _firestoreService.completePaymentAndCreditLedger(
+      bill: bill,
+      paymentRef: utrRef,
+      paymentMode: paymentMode,
+    );
+  }
+
+  Future<bool> processUpiPayment({
+    required MaintenanceBill bill,
+    required String upiId,
+    required String merchantName,
+    required BuildContext context,
+    required String societyNameEn,
+    required String societyNameMr,
+    required String registrationNo,
+    required String societyAddress,
+  }) async {
+    _isProcessingPayment = true;
     notifyListeners();
+
+    try {
+      final success = await UpiPaymentService.launchUpiPayment(
+        payeeVpa: upiId,
+        payeeName: merchantName,
+        transactionNote: 'Maint-${bill.billMonth}/${bill.billYear}-Flat${bill.flatNumber}',
+        amount: bill.totalAmount,
+      );
+
+      final dummyRef = 'UPI-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+
+      final pdfBytes = await PdfReceiptService.generateMaintenanceReceiptPdf(
+        bill: bill.copyWith(
+          status: 'paid',
+          paidAt: DateTime.now(),
+          paymentRef: dummyRef,
+        ),
+        societyNameEn: societyNameEn,
+        societyNameMr: societyNameMr,
+        registrationNo: registrationNo,
+        societyAddress: societyAddress,
+        societyUpiId: upiId,
+      );
+
+      await _firestoreService.completePaymentAndCreditLedger(
+        bill: bill,
+        paymentRef: dummyRef,
+        paymentMode: 'UPI Instant App',
+        receiptPdfBytes: pdfBytes,
+      );
+
+      _isProcessingPayment = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isProcessingPayment = false;
+      notifyListeners();
+      return false;
+    }
   }
 
-  /// Download or Print PDF Receipt
-  Future<void> downloadReceiptPdf(MaintenanceBill bill) async {
-    final pdfBytes = await getReceiptPdfBytes(bill);
-    final filename = 'Receipt_${bill.flatNumber}_${bill.billMonth}_${bill.billYear}.pdf';
-    await PdfReceiptService.printOrShareReceipt(pdfBytes, filename);
-  }
-
-  Future<Uint8List> getReceiptPdfBytes(MaintenanceBill bill) async {
+  Future<Uint8List> generateReceiptPdf({
+    required MaintenanceBill bill,
+    required String societyNameEn,
+    required String societyNameMr,
+    required String registrationNo,
+    required String societyAddress,
+    required String societyUpiId,
+  }) async {
     return await PdfReceiptService.generateMaintenanceReceiptPdf(
       bill: bill,
-      societyNameEn: _fallbackService.activeSociety.name,
-      societyNameMr: _fallbackService.activeSociety.nameMr,
-      registrationNo: _fallbackService.activeSociety.registrationNo,
-      societyAddress: _fallbackService.activeSociety.address,
-      societyUpiId: _fallbackService.activeSociety.upiId,
+      societyNameEn: societyNameEn,
+      societyNameMr: societyNameMr,
+      registrationNo: registrationNo,
+      societyAddress: societyAddress,
+      societyUpiId: societyUpiId,
     );
   }
 }

@@ -13,464 +13,242 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // Method: 'email' or 'phone'
-  String _authMethod = 'email';
+  bool _isGoogleLoading = false;
 
-  // Email controllers
-  final _emailController = TextEditingController(text: 'rajesh.deshmukh@gmail.com');
-  final _passwordController = TextEditingController(text: 'Password@123');
-  final _nameController = TextEditingController();
-  final _flatController = TextEditingController(text: 'A-402');
-  final _wingController = TextEditingController(text: 'A');
-
-  // Phone controllers
-  final _phoneController = TextEditingController(text: '+91 98203 34455');
-  final _otpController = TextEditingController();
-  bool _isOtpSent = false;
-  String _verificationId = '';
-
-  bool _isSignUp = false;
-  bool _obscurePassword = true;
-  String _selectedRole = 'member'; // 'admin', 'member', 'guard'
+  Future<void> _handleGoogleSignIn(AuthProvider auth, bool isMr) async {
+    setState(() => _isGoogleLoading = true);
+    final success = await auth.signInWithGoogle();
+    if (mounted) {
+      setState(() => _isGoogleLoading = false);
+      if (!success && auth.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(auth.errorMessage!),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final lang = Provider.of<LanguageProvider>(context);
     final auth = Provider.of<AuthProvider>(context);
+    final isMr = lang.isMarathi;
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Header Language Switcher
+              // Top Bar with Language Switcher
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const LanguageToggleButton(isDark: false),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(6),
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFBFDBFE)),
                     ),
-                    child: Text(
-                      'Live Firebase: society-6ad99',
-                      style: TextStyle(fontSize: 11, color: Colors.blue.shade900, fontWeight: FontWeight.bold),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.cloud_done, size: 14, color: Color(0xFF1E3A8A)),
+                        const SizedBox(width: 4),
+                        Text(
+                          isMr ? 'क्लाउड सिस्टीम' : 'Live Cloud',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                        ),
+                      ],
                     ),
                   ),
+                  const LanguageToggleButton(isDark: false),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 36),
 
-              // Society Emblem / App Title
-              Center(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 66,
-                      height: 66,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryNavy,
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primaryNavy.withOpacity(0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.apartment, color: Colors.white, size: 38),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      lang.tr('appName'),
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryNavy,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      lang.isMarathi
-                          ? 'शिवाजी पार्क सहकारी गृहनिर्माण संस्था'
-                          : 'Shivaji Park Co-op Housing Society Ltd.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Error Banner
-              if (auth.errorMessage != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  margin: const EdgeInsets.only(bottom: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          auth.errorMessage!,
-                          style: TextStyle(color: Colors.red.shade900, fontSize: 11),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              // Auth Method Segment (Email vs Mobile OTP)
+              // App Logo & Branding
               Container(
+                width: 90,
+                height: 90,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: const EdgeInsets.all(3),
-                child: Row(
-                  children: [
-                    _buildMethodTab('email', 'Email & Password', Icons.email),
-                    _buildMethodTab('phone', 'Mobile Phone OTP', Icons.phone_android),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF1E3A8A).withOpacity(0.3),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
                   ],
                 ),
+                child: const Icon(
+                  Icons.apartment_rounded,
+                  size: 52,
+                  color: Colors.white,
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              // Role Selector Tabs
               Text(
-                '${lang.tr('selectLanguage') == 'भाषा निवडा' ? 'आपली भूमिका निवडा' : 'Select Your Role'}:',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                isMr ? 'सोसायटी गेट' : 'Society Gate',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1E3A8A),
+                  letterSpacing: -0.5,
+                ),
               ),
               const SizedBox(height: 6),
-
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey.shade300),
+              Text(
+                isMr ? 'गृहनिर्माण संस्था व्यवस्थापन प्रणाली' : 'Housing Society Management System',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF64748B),
                 ),
-                padding: const EdgeInsets.all(3),
-                child: Row(
+              ),
+              const SizedBox(height: 36),
+
+              // Feature Highlights Card
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
                   children: [
-                    _buildRoleTab('member', lang.tr('member'), Icons.home),
-                    _buildRoleTab('admin', lang.tr('admin'), Icons.admin_panel_settings),
-                    _buildRoleTab('guard', lang.tr('guard'), Icons.security),
+                    _buildFeatureItem(
+                      icon: Icons.qr_code_2,
+                      text: isMr ? 'NPCI Dynamic UPI QR व त्वरित पावती' : 'Dynamic UPI QR & instant receipts',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildFeatureItem(
+                      icon: Icons.account_balance_wallet,
+                      text: isMr ? 'पारदर्शक ताळेबंद व व्हाउचर अपलोड' : 'Transparent ledger & voucher uploads',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildFeatureItem(
+                      icon: Icons.security,
+                      text: isMr ? 'गेट व्हिजिटर नोंदवही व सुरक्षा' : 'Gate visitor register & security',
+                    ),
                   ],
                 ),
               ),
+              const SizedBox(height: 36),
 
-              const SizedBox(height: 18),
-
-              // =================== EMAIL FLOW ===================
-              if (_authMethod == 'email') ...[
-                if (_isSignUp) ...[
-                  Text(
-                    lang.isMarathi ? 'पूर्ण नाव' : 'Full Name',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _nameController,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.person, size: 20),
-                      hintText: lang.isMarathi ? 'उदा. राजेश देशमुख' : 'e.g. Rajesh Deshmukh',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(lang.tr('wing'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 6),
-                            TextField(controller: _wingController, decoration: const InputDecoration(hintText: 'A')),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(lang.tr('flat'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 6),
-                            TextField(controller: _flatController, decoration: const InputDecoration(hintText: 'A-402')),
-                          ],
-                        ),
+              // PRIMARY 1-CLICK GOOGLE SIGN IN BUTTON
+              InkWell(
+                onTap: _isGoogleLoading ? null : () => _handleGoogleSignIn(auth, isMr),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  height: 54,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFCBD5E1), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                ],
-
-                Text(
-                  lang.isMarathi ? 'ईमेल पत्ता' : 'Email Address',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.email, size: 20),
-                    hintText: 'user@example.com',
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                Text(
-                  lang.isMarathi ? 'पासवर्ड' : 'Password',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.lock, size: 20),
-                    hintText: '••••••••',
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off, size: 20),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                    ),
-                  ),
-                ),
-
-                if (!_isSignUp) ...[
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => _showForgotPasswordDialog(context, auth, lang),
-                      child: Text(
-                        lang.isMarathi ? 'पासवर्ड विसरलात?' : 'Forgot Password?',
-                        style: const TextStyle(fontSize: 11),
-                      ),
-                    ),
-                  ),
-                ] else
-                  const SizedBox(height: 16),
-
-                // Submit Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: auth.isLoading
-                        ? null
-                        : () async {
-                            if (_isSignUp) {
-                              await auth.registerWithEmailPassword(
-                                email: _emailController.text,
-                                password: _passwordController.text,
-                                name: _nameController.text.isNotEmpty ? _nameController.text : 'Member',
-                                role: _selectedRole,
-                                flatNumber: _flatController.text,
-                                wing: _wingController.text,
-                              );
-                            } else {
-                              await auth.signInWithEmailPassword(
-                                email: _emailController.text,
-                                password: _passwordController.text,
-                              );
-                            }
-                          },
-                    child: auth.isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
-                        : Text(
-                            _isSignUp ? (lang.isMarathi ? 'नोंदणी करा (Sign Up)' : 'Sign Up') : lang.tr('login'),
-                          ),
-                  ),
-                ),
-
-                Center(
-                  child: TextButton(
-                    onPressed: () => setState(() => _isSignUp = !_isSignUp),
-                    child: Text(
-                      _isSignUp
-                          ? (lang.isMarathi ? 'आधीच खाते आहे? लॉगिन करा' : 'Already have an account? Sign In')
-                          : (lang.isMarathi ? 'नवीन खाते तयार करा (Sign Up)' : "Don't have an account? Sign Up"),
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ]
-
-              // =================== PHONE OTP FLOW ===================
-              else ...[
-                Text(
-                  lang.isMarathi ? 'मोबाईल नंबर (E.164)' : 'Mobile Phone Number',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.phone, size: 20),
-                    hintText: '+91 98200 12345',
-                    suffixIcon: TextButton(
-                      onPressed: auth.isLoading
-                          ? null
-                          : () {
-                              auth.sendPhoneOtp(
-                                phoneNumber: _phoneController.text,
-                                onCodeSent: (vId) {
-                                  setState(() {
-                                    _verificationId = vId;
-                                    _isOtpSent = true;
-                                  });
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('OTP sent to phone via SMS!')),
-                                  );
-                                },
-                                onError: (err) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(err), backgroundColor: Colors.red),
-                                  );
-                                },
-                              );
-                            },
-                      child: Text(
-                        _isOtpSent ? (lang.isMarathi ? 'पुन्हा पाठवा' : 'Resend') : (lang.isMarathi ? 'OTP पाठवा' : 'Send OTP'),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                if (_isOtpSent) ...[
-                  Text(
-                    lang.isMarathi ? 'एसएमएस द्वारे आलेला ओटीपी (6-Digit OTP)' : 'Enter 6-Digit SMS OTP',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _otpController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.sms, size: 20),
-                      hintText: '123456',
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: auth.isLoading
-                          ? null
-                          : () async {
-                              await auth.verifyPhoneOtpAndSignIn(
-                                verificationId: _verificationId,
-                                smsCode: _otpController.text,
-                                role: _selectedRole,
-                              );
-                            },
-                      child: auth.isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                            )
-                          : Text(lang.tr('login')),
-                    ),
-                  ),
-                ],
-              ],
-
-              const SizedBox(height: 16),
-
-              // Quick Demo One-Click Access
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.amber.shade300),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.bolt, size: 16, color: Colors.amber.shade900),
-                        const SizedBox(width: 6),
-                        Text(
-                          lang.isMarathi ? 'चाचणीसाठी एका क्लिकवर थेट प्रवेश:' : 'Quick Demo One-Click Access:',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.amber.shade900,
-                          ),
+                  child: _isGoogleLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Google 'G' Icon colored
+                            Image.network(
+                              'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                              width: 24,
+                              height: 24,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.g_mobiledata,
+                                size: 32,
+                                color: Color(0xFF4285F4),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Text(
+                              isMr ? 'Google ने साइन इन करा' : 'Sign in with Google',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _demoButton('Admin (सचिव)', 'admin', Colors.blue, 'secretary.shivaji@chs.in'),
-                        _demoButton('Member (A-402)', 'member', Colors.green, 'rajesh.deshmukh@gmail.com'),
-                        _demoButton('Guard (गेट)', 'guard', Colors.orange, 'security.gate@chs.in'),
-                      ],
-                    ),
-                  ],
                 ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                isMr
+                    ? '🔒 सुरक्षित व १-क्लिक लॉगिन • मोबाईल नंबर ऐच्छिक'
+                    : '🔒 Fast 1-click login • Mobile number is optional',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 36),
+
+              // OR Divider
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      isMr ? 'किंवा सराव / चाचणी मोड' : 'Or Trial / Demo Mode',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
               ),
               const SizedBox(height: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildMethodTab(String method, String label, IconData icon) {
-    final isSelected = _authMethod == method;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _authMethod = method),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: isSelected ? [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, 2))] : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 15, color: isSelected ? AppTheme.primaryNavy : Colors.grey.shade600),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? AppTheme.primaryNavy : Colors.grey.shade700,
-                ),
+              // Quick Demo Exploration Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.admin_panel_settings, size: 16),
+                      label: Text(isMr ? 'सचिव डेमो' : 'Admin Demo', style: const TextStyle(fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        side: const BorderSide(color: Color(0xFF94A3B8)),
+                      ),
+                      onPressed: () => auth.signInAsDemoUser(role: 'admin'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.person, size: 16),
+                      label: Text(isMr ? 'सभासद डेमो' : 'Member Demo', style: const TextStyle(fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        side: const BorderSide(color: Color(0xFF94A3B8)),
+                      ),
+                      onPressed: () => auth.signInAsDemoUser(role: 'member'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -479,99 +257,25 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildRoleTab(String role, String label, IconData icon) {
-    final isSelected = _selectedRole == role;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedRole = role),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+  Widget _buildFeatureItem({required IconData icon, required String text}) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: isSelected ? [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, 2))] : null,
+            color: const Color(0xFFEFF6FF),
+            borderRadius: BorderRadius.circular(6),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 14, color: isSelected ? AppTheme.primaryNavy : Colors.grey.shade600),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? AppTheme.primaryNavy : Colors.grey.shade700,
-                ),
-              ),
-            ],
+          child: Icon(icon, size: 18, color: const Color(0xFF1E3A8A)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF334155), fontWeight: FontWeight.w500),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _demoButton(String label, String role, Color color, String email) {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _authMethod = 'email';
-          _emailController.text = email;
-          _selectedRole = role;
-        });
-        auth.switchRole(role);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: color.withOpacity(0.4)),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
-        ),
-      ),
-    );
-  }
-
-  void _showForgotPasswordDialog(BuildContext context, AuthProvider auth, LanguageProvider lang) {
-    final resetController = TextEditingController(text: _emailController.text);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(lang.isMarathi ? 'पासवर्ड रीसेट करा' : 'Reset Password', style: const TextStyle(fontSize: 15)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              lang.isMarathi
-                  ? 'आपला ईमेल प्रविष्ट करा. आम्ही पासवर्ड रीसेट लिंक पाठवू.'
-                  : 'Enter your email address to receive a password reset link.',
-              style: const TextStyle(fontSize: 12),
-            ),
-            const SizedBox(height: 12),
-            TextField(controller: resetController, decoration: const InputDecoration(labelText: 'Email')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(lang.tr('cancel'))),
-          ElevatedButton(
-            onPressed: () async {
-              await auth.sendPasswordReset(resetController.text);
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Password reset email sent! Check your inbox.')),
-                );
-              }
-            },
-            child: Text(lang.tr('submit')),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }

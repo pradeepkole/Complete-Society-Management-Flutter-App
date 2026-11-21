@@ -1,30 +1,26 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/complaint_model.dart';
-import '../services/firebase_service.dart';
 import '../services/firestore_service.dart';
 
 class ComplaintProvider extends ChangeNotifier {
-  final FirebaseService _fallbackService = FirebaseService.instance;
   final FirestoreService _firestoreService = FirestoreService.instance;
 
+  String? _societyId;
   List<ComplaintModel> _complaints = [];
   StreamSubscription<List<ComplaintModel>>? _subscription;
 
-  ComplaintProvider() {
-    _complaints = List.from(_fallbackService.complaints);
-    _initLiveFirestoreStream();
-  }
+  ComplaintProvider();
 
-  void _initLiveFirestoreStream() {
-    try {
-      _subscription = _firestoreService.streamComplaints().listen((liveComplaints) {
-        if (liveComplaints.isNotEmpty) {
-          _complaints = liveComplaints;
-          notifyListeners();
-        }
-      }, onError: (_) {});
-    } catch (_) {}
+  void setSocietyId(String societyId) {
+    if (_societyId == societyId) return;
+    _societyId = societyId;
+    _subscription?.cancel();
+
+    _subscription = _firestoreService.streamComplaints(societyId).listen((liveComplaints) {
+      _complaints = liveComplaints;
+      notifyListeners();
+    }, onError: (_) {});
   }
 
   @override
@@ -33,13 +29,14 @@ class ComplaintProvider extends ChangeNotifier {
     super.dispose();
   }
 
-  List<ComplaintModel> get allComplaints => _complaints.isNotEmpty ? _complaints : _fallbackService.complaints;
+  List<ComplaintModel> get allComplaints => _complaints;
 
   List<ComplaintModel> getComplaintsForFlat(String flatNumber) {
-    return allComplaints.where((c) => c.flatNumber == flatNumber).toList();
+    return _complaints.where((c) => c.flatNumber == flatNumber).toList();
   }
 
   Future<void> raiseComplaint({
+    required String societyId,
     required String flatNumber,
     required String memberUid,
     required String memberName,
@@ -50,8 +47,8 @@ class ComplaintProvider extends ChangeNotifier {
     String priority = 'medium',
   }) async {
     final complaint = ComplaintModel(
-      id: 'TKT-${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}',
-      societyId: FirestoreService.currentSocietyId,
+      id: 'CMP-${DateTime.now().millisecondsSinceEpoch}',
+      societyId: societyId,
       flatNumber: flatNumber,
       memberUid: memberUid,
       memberName: memberName,
@@ -63,20 +60,10 @@ class ComplaintProvider extends ChangeNotifier {
       createdAt: DateTime.now(),
     );
 
-    try {
-      await _firestoreService.addComplaint(complaint);
-    } catch (_) {
-      await _fallbackService.addComplaint(complaint);
-    }
-    notifyListeners();
+    await _firestoreService.addComplaint(complaint);
   }
 
-  Future<void> updateStatus(String complaintId, String newStatus, String remarks) async {
-    try {
-      await _firestoreService.updateComplaintStatus(complaintId, newStatus, remarks);
-    } catch (_) {
-      await _fallbackService.updateComplaintStatus(complaintId, newStatus, remarks);
-    }
-    notifyListeners();
+  Future<void> updateStatus(String id, String status, String remarks) async {
+    await _firestoreService.updateComplaintStatus(id, status, remarks);
   }
 }
