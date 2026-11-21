@@ -311,6 +311,14 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final cleanCode = societyCode.trim().toUpperCase().replaceAll('SOC-', '');
+      if (cleanCode == '458653' || cleanCode == '681814') {
+        _errorMessage = 'अवैध सोसायटी कोड!';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
       final society = await _firestoreService.findSocietyByCode(societyCode);
       if (society == null) {
         _errorMessage = 'Invalid Society Code / अवैध सोसायटी कोड!';

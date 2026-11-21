@@ -53,7 +53,12 @@ class FirestoreService {
     final societyId = 'soc_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(999)}';
     
     // Generate 6-digit unique join code (e.g. SOC-849201)
-    final randomDigits = (100000 + Random().nextInt(900000)).toString();
+    // STRICT RULE: Exclude 458653 and 681814 so NO society ever receives these reserved master codes
+    String randomDigits;
+    do {
+      randomDigits = (100000 + Random().nextInt(900000)).toString();
+    } while (randomDigits == '458653' || randomDigits == '681814');
+
     final societyCode = 'SOC-$randomDigits';
 
     String? logoUrl;
@@ -168,8 +173,13 @@ class FirestoreService {
     return updated;
   }
 
-  /// Finds society by 6-digit societyCode
+  /// Finds society by 6-digit societyCode (Strictly excludes reserved master PINs)
   Future<SocietyModel?> findSocietyByCode(String code) async {
+    final cleanCode = code.trim().toUpperCase().replaceAll('SOC-', '');
+    if (cleanCode == '458653' || cleanCode == '681814') {
+      return null;
+    }
+
     final query = await societiesRef
         .where('societyCode', isEqualTo: code.trim().toUpperCase())
         .limit(1)
