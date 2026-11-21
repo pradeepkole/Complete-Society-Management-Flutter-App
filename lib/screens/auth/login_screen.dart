@@ -81,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Text(isMr ? 'रद्द करा' : 'Cancel'),
           ),
           ElevatedButton.icon(
-            icon: const Icon(Icons.rocket_launch, size: 16),
+            icon: const Icon(Icons.arrow_forward, size: 16),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1E3A8A),
               foregroundColor: Colors.white,
