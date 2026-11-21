@@ -61,9 +61,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: const Color(0xFFCBD5E1)),
               ),
-              child: SelectableText(
+              child: const Text(
                 '76:4B:AD:25:DE:1F:B3:96:B6:30:25:3F:88:C1:E2:28:AF:30:6F:92',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'monospace', color: Color(0xFF1E293B)),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'monospace', color: Color(0xFF1E293B)),
               ),
             ),
             const SizedBox(height: 14),
