@@ -51,7 +51,7 @@ class NoticeBoardScreen extends StatelessWidget {
               itemBuilder: (context, index) {
                 try {
                   final notice = notices[index];
-                  return _buildNoticeCard(context, notice, lang);
+                  return _buildNoticeCard(context, notice, lang, auth);
                 } catch (e) {
                   return Card(
                     child: Padding(
@@ -65,7 +65,7 @@ class NoticeBoardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildNoticeCard(BuildContext context, NoticeModel notice, LanguageProvider lang) {
+  Widget _buildNoticeCard(BuildContext context, NoticeModel notice, LanguageProvider lang, AuthProvider auth) {
     final isUrgent = notice.isUrgent;
     final isMr = lang.isMarathi;
 
@@ -143,9 +143,25 @@ class NoticeBoardScreen extends StatelessWidget {
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
                     ),
                   ),
-                Text(
-                  AppDateFormatter.formatDate(notice.publishedDate, isMarathi: isMr),
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      AppDateFormatter.formatDate(notice.publishedDate, isMarathi: isMr),
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                    ),
+                    if (auth.isSoftAdmin || auth.canManageExpenses) ...[
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => _confirmDeleteNotice(context, notice, Provider.of<NoticeProvider>(context, listen: false), isMr),
+                        borderRadius: BorderRadius.circular(4),
+                        child: const Padding(
+                          padding: EdgeInsets.all(2),
+                          child: Icon(Icons.delete_outline, size: 18, color: Color(0xFFDC2626)),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -186,6 +202,52 @@ class NoticeBoardScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _confirmDeleteNotice(BuildContext context, NoticeModel notice, NoticeProvider noticeProvider, bool isMr) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.delete_forever, color: Color(0xFFDC2626)),
+            const SizedBox(width: 8),
+            Text(isMr ? 'सूचना हटवायची आहे का?' : 'Delete Notice?'),
+          ],
+        ),
+        content: Text(
+          isMr
+              ? 'आपण "${notice.titleMr.isNotEmpty ? notice.titleMr : notice.title}" ही सूचना डिजिटल फलकावरून कायमची काढू इच्छिता का?'
+              : 'Are you sure you want to permanently remove this notice from the board?',
+          style: const TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(isMr ? 'रद्द करा' : 'Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await noticeProvider.deleteNotice(notice.id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(isMr ? 'सूचना डिजिटल फलकावरून काढण्यात आली!' : 'Notice deleted successfully!'),
+                  ),
+                );
+              }
+            },
+            child: Text(isMr ? 'होय, हटवा' : 'Delete'),
+          ),
+        ],
       ),
     );
   }

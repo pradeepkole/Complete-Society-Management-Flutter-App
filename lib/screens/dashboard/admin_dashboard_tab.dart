@@ -46,51 +46,6 @@ class AdminDashboardTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // SoftAdmin Master Access Quick Card
-          if (auth.isSoftAdmin)
-            Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF38BDF8)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.shield, color: Color(0xFF38BDF8), size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isMr ? 'SoftAdmin मास्टर कंट्रोल पॅनल' : 'SoftAdmin Master Control Panel',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
-                        ),
-                        Text(
-                          isMr ? 'व्यवहार व्यवस्थापन, ब्लँक डेटाबेस व सोसायटी स्विच' : 'Manage entries, blank database & switch society',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0284C7),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                    ),
-                    onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const SoftAdminControlScreen()));
-                    },
-                    child: Text(isMr ? 'उघडा' : 'Open'),
-                  ),
-                ],
-              ),
-            ),
-
           // Super Admin Term Alert Banner
           if (society != null && society.isSuperAdminTermDue)
             Container(

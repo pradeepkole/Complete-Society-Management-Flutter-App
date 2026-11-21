@@ -7,6 +7,7 @@ import '../../l10n/language_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/date_formatter.dart';
 import '../../widgets/custom_app_bar.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'raise_complaint_screen.dart';
 
 class ComplaintsScreen extends StatefulWidget {
@@ -54,6 +55,48 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // Support Hotline Card
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF93C5FD)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.support_agent, color: Color(0xFF1E3A8A), size: 24),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          lang.isMarathi ? 'सोसायटी हेल्पलाइन व तांत्रिक सपोर्ट' : 'Society Helpline & Tech Support',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF1E3A8A)),
+                        ),
+                        const Text(
+                          '📞 9822681814',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF2563EB)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E3A8A),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () => launchUrl(Uri.parse('tel:9822681814'), mode: LaunchMode.externalApplication),
+                    child: Text(lang.isMarathi ? 'कॉल करा' : 'Call'),
+                  ),
+                ],
+              ),
+            ),
+
             // Status Filter Tabs
             Row(
               children: [

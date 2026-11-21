@@ -40,14 +40,24 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       titleSpacing: 12,
       title: Row(
         children: [
-          // Society Logo
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: SocietyLogoWidget(
-              logoUrl: society?.logoUrl,
-              fallbackText: societyDisplayName,
-              size: 38,
-              borderRadius: 8,
+          // Society Logo (Hidden Trigger: Long press opens SoftAdmin Master Panel ONLY if softadmin is logged in)
+          GestureDetector(
+            onLongPress: () {
+              if (auth.isSoftAdmin) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SoftAdminControlScreen()),
+                );
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: SocietyLogoWidget(
+                logoUrl: society?.logoUrl,
+                fallbackText: societyDisplayName,
+                size: 38,
+                borderRadius: 8,
+              ),
             ),
           ),
 
@@ -77,17 +87,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       actions: [
         if (actions != null) ...actions!,
-        if (auth.isSoftAdmin)
-          IconButton(
-            icon: const Icon(Icons.shield, color: Color(0xFF38BDF8), size: 22),
-            tooltip: isMr ? 'SoftAdmin मास्टर कंट्रोल' : 'SoftAdmin Master Control',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SoftAdminControlScreen()),
-              );
-            },
-          ),
         if (showLanguageToggle)
           const Padding(
             padding: EdgeInsets.only(right: 4),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/society_model.dart';
 import '../../models/ledger_entry_model.dart';
 import '../../models/maintenance_bill_model.dart';
+import '../../models/notice_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../l10n/language_provider.dart';
@@ -25,7 +26,7 @@ class _SoftAdminControlScreenState extends State<SoftAdminControlScreen> with Si
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -200,6 +201,7 @@ class _SoftAdminControlScreenState extends State<SoftAdminControlScreen> with Si
                           tabs: [
                             Tab(icon: const Icon(Icons.account_balance_wallet, size: 18), text: isMr ? 'लेजर व्यवहार' : 'Ledger Entries'),
                             Tab(icon: const Icon(Icons.receipt_long, size: 18), text: isMr ? 'सर्व बिले' : 'Bills'),
+                            Tab(icon: const Icon(Icons.campaign, size: 18), text: isMr ? 'सूचना फलक' : 'Notices'),
                           ],
                         ),
                       ],
@@ -212,6 +214,7 @@ class _SoftAdminControlScreenState extends State<SoftAdminControlScreen> with Si
                 children: [
                   _buildLedgerTab(currentSoc.id, isMr),
                   _buildBillsTab(currentSoc.id, isMr),
+                  _buildNoticesTab(currentSoc.id, isMr),
                 ],
               ),
             ),
@@ -356,6 +359,83 @@ class _SoftAdminControlScreenState extends State<SoftAdminControlScreen> with Si
           },
         );
       },
+    );
+  }
+
+  Widget _buildNoticesTab(String societyId, bool isMr) {
+    return StreamBuilder<List<NoticeModel>>(
+      stream: _firestore.streamNotices(societyId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final notices = snapshot.data ?? [];
+        if (notices.isEmpty) {
+          return Center(
+            child: Text(
+              isMr ? 'कोणतीही सूचना उपलब्ध नाही (ब्लँक).' : 'No notices found.',
+              style: const TextStyle(color: Colors.grey),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: notices.length,
+          itemBuilder: (context, index) {
+            final notice = notices[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                title: Text(
+                  isMr ? notice.titleMr : notice.title,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  '${notice.category} • ${AppDateFormatter.formatDate(notice.publishedDate, isMarathi: isMr)} • ${notice.issuedByName}',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_forever, size: 20, color: Colors.red),
+                  tooltip: isMr ? 'सूचना कायमची हटवा' : 'Delete Notice',
+                  onPressed: () => _confirmHardDeleteNotice(context, notice, isMr),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _confirmHardDeleteNotice(BuildContext context, NoticeModel notice, bool isMr) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isMr ? 'सूचना डिलीट करा?' : 'Delete Notice?'),
+        content: Text(
+          isMr
+              ? 'आपण "${notice.titleMr.isNotEmpty ? notice.titleMr : notice.title}" ही सूचना कायमची पुसून टाकू इच्छिता का?'
+              : 'Delete this notice permanently?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isMr ? 'रद्द' : 'Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () async {
+              await _firestore.deleteNotice(notice.id);
+              if (context.mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(isMr ? 'सूचना डिलीट झाली!' : 'Notice deleted!')),
+                );
+              }
+            },
+            child: Text(isMr ? 'हटवा' : 'Delete'),
+          ),
+        ],
+      ),
     );
   }
 

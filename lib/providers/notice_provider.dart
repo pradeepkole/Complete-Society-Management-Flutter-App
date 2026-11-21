@@ -59,4 +59,8 @@ class NoticeProvider extends ChangeNotifier {
 
     await _firestoreService.postNotice(notice);
   }
+
+  Future<void> deleteNotice(String noticeId) async {
+    await _firestoreService.deleteNotice(noticeId);
+  }
 }

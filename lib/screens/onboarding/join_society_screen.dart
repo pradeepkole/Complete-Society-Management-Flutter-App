@@ -205,7 +205,7 @@ class _JoinSocietyScreenState extends State<JoinSocietyScreen> {
               ),
               const SizedBox(height: 20),
 
-              // If Member: Wing & Flat Number
+              // If Member: Wing / Floor & Flat Number
               if (_selectedRole == 'member') ...[
                 Row(
                   children: [
@@ -214,16 +214,45 @@ class _JoinSocietyScreenState extends State<JoinSocietyScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(isMr ? 'विंग (Wing)' : 'Wing', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          Text(
+                            isMr ? 'विंग / मजला (Wing / Floor)' : 'Wing / Floor',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
                           const SizedBox(height: 6),
                           DropdownButtonFormField<String>(
                             value: _selectedWing,
-                            items: ['A', 'B', 'C', 'D', 'E'].map((w) {
-                              return DropdownMenuItem(value: w, child: Text('Wing $w'));
-                            }).toList(),
-                            onChanged: (val) => setState(() => _selectedWing = val ?? 'A'),
+                            items: [
+                              const DropdownMenuItem(
+                                enabled: false,
+                                value: 'HEADER_WINGS',
+                                child: Text('--- विंग (Wings) ---', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                              ),
+                              ...['A', 'B', 'C', 'D', 'E'].map((w) {
+                                return DropdownMenuItem(
+                                  value: w,
+                                  child: Text(isMr ? 'विंग $w' : 'Wing $w'),
+                                );
+                              }),
+                              const DropdownMenuItem(
+                                enabled: false,
+                                value: 'HEADER_FLOORS',
+                                child: Text('--- मजले (Floors) ---', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                              ),
+                              ...['Floor 1', 'Floor 2', 'Floor 3', 'Floor 4', 'Floor 5', 'Floor 6', 'Floor 7'].map((f) {
+                                final fNum = f.replaceAll('Floor ', '');
+                                return DropdownMenuItem(
+                                  value: f,
+                                  child: Text(isMr ? 'मजला $fNum' : f),
+                                );
+                              }),
+                            ],
+                            onChanged: (val) {
+                              if (val != null && !val.startsWith('HEADER_')) {
+                                setState(() => _selectedWing = val);
+                              }
+                            },
                             decoration: InputDecoration(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                             ),
                           ),

@@ -8,6 +8,8 @@ import '../../providers/auth_provider.dart';
 import '../../l10n/language_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/society_logo_widget.dart';
+import '../../services/firestore_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SocietySettingsScreen extends StatefulWidget {
   const SocietySettingsScreen({super.key});
@@ -35,6 +37,8 @@ class _SocietySettingsScreenState extends State<SocietySettingsScreen> {
   final ImagePicker _picker = ImagePicker();
   bool _isSaving = false;
   bool _allowMobileLogin = false;
+  String _groupingType = 'wing';
+  int _superAdminTermMonths = 3;
 
   @override
   void initState() {
@@ -42,6 +46,8 @@ class _SocietySettingsScreenState extends State<SocietySettingsScreen> {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final soc = auth.currentSociety;
     _allowMobileLogin = soc?.allowMobileLogin ?? false;
+    _groupingType = soc?.groupingType ?? 'wing';
+    _superAdminTermMonths = soc?.superAdminTermMonths ?? 3;
 
     _nameEnController = TextEditingController(text: soc?.name ?? '');
     _nameMrController = TextEditingController(text: soc?.nameMr ?? '');
@@ -54,6 +60,111 @@ class _SocietySettingsScreenState extends State<SocietySettingsScreen> {
     _accountNoController = TextEditingController(text: soc?.accountNo ?? '');
     _ifscController = TextEditingController(text: soc?.ifsc ?? '');
     _maintenanceAmountController = TextEditingController(text: soc?.defaultMaintenanceAmount.toStringAsFixed(0) ?? '2000');
+  }
+
+  Future<void> _handleGroupingTypeChange(String newType, bool isMr) async {
+    if (newType == _groupingType) return;
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final soc = auth.currentSociety;
+    if (soc == null) return;
+
+    // STRICT RULE: If any dues remain pending, cannot change grouping structure!
+    final hasDues = await FirestoreService.instance.hasPendingSocietyDues(soc.id);
+    if (hasDues) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.warning, color: Colors.red),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isMr ? '⚠️ थकबाकी शिल्लक आहे!' : 'Outstanding Dues Pending!',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              isMr
+                  ? 'संस्थेतील सर्व मेंटेनन्स देयके (Dues) १००% पूर्ण भरल्याशिवाय व्यवस्थापन गट पद्धत (विंग/मजला) बदलता येणार नाही. कृपया आधी सर्व थकीत बिले वसूल करा.'
+                  : 'Management grouping structure (Wing/Floor) cannot be changed while there are unpaid maintenance bills. Please collect all dues first.',
+              style: const TextStyle(fontSize: 13, height: 1.4),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(isMr ? 'समजले' : 'OK'),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _groupingType = newType);
+  }
+
+  void _showExtendTenureDialog(AuthProvider auth, bool isMr) {
+    int additionalMonths = 3;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(isMr ? 'सुपर ॲडमिन कार्यकाळ वाढवा' : 'Extend Super Admin Tenure'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isMr ? 'चालू सुपर ॲडमिनची मुदत किती कालावधीने वाढवायची आहे?' : 'Extend current Super Admin term by:',
+                style: const TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                value: additionalMonths,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                items: [
+                  DropdownMenuItem(value: 1, child: Text(isMr ? '१ महिना (1 Month)' : '1 Month')),
+                  DropdownMenuItem(value: 3, child: Text(isMr ? '३ महिने (3 Months)' : '3 Months')),
+                  DropdownMenuItem(value: 6, child: Text(isMr ? '६ महिने (6 Months)' : '6 Months')),
+                  DropdownMenuItem(value: 12, child: Text(isMr ? '१ वर्ष (12 Months)' : '1 Year (12 Months)')),
+                ],
+                onChanged: (val) {
+                  if (val != null) setModalState(() => additionalMonths = val);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isMr ? 'रद्द करा' : 'Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryNavy, foregroundColor: Colors.white),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final success = await auth.extendSuperAdminTerm(additionalMonths);
+                if (mounted && success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: Colors.green,
+                      content: Text(isMr ? 'कार्यकाळ यशस्वीरीत्या वाढवण्यात आला!' : 'Tenure extended successfully!'),
+                    ),
+                  );
+                }
+              },
+              child: Text(isMr ? 'मुदत वाढवा' : 'Extend Term'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _pickLogo(ImageSource source) async {
@@ -125,6 +236,8 @@ class _SocietySettingsScreenState extends State<SocietySettingsScreen> {
       defaultMaintenanceAmount: double.tryParse(_maintenanceAmountController.text) ?? 2000,
       newLogoBytes: _newLogoBytes,
       allowMobileLogin: _allowMobileLogin,
+      groupingType: _groupingType,
+      superAdminTermMonths: _superAdminTermMonths,
     );
 
     setState(() => _isSaving = false);
@@ -201,6 +314,123 @@ class _SocietySettingsScreenState extends State<SocietySettingsScreen> {
                             ? 'आपल्या ${society?.nameMr ?? society?.name} सोसायटीचे अधिकृत अ‍ॅप सुरू झाले आहे. जॉइन करण्यासाठी कोड: ${society?.societyCode}'
                             : 'Join our society app for ${society?.name}. Use Society Code: ${society?.societyCode}';
                         Share.share(msg);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // ==========================================
+              // 1. MANAGEMENT GROUPING STRUCTURE & TENURE
+              // ==========================================
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.hub_outlined, color: Color(0xFF1E3A8A)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            isMr ? '१. व्यवस्थापन गट रचना (Grouping Structure)' : '1. Management Grouping Structure',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      isMr
+                          ? 'संस्थेत मेंटेनन्स वसुली व प्रतिनिधी विंगनुसार करायचे की मजल्यानुसार हे ठरवा.'
+                          : 'Choose whether maintenance & admins are organised Wing-wise or Floor-wise.',
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        children: [
+                          RadioListTile<String>(
+                            title: Text(
+                              isMr ? 'विंग पद्धत (Wing-wise) - उदा. A, B विंग्स' : 'Wing-wise (e.g. Wing A, B)',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(
+                              isMr ? 'प्रत्येक विंगसाठी स्वतंत्र संकलन ॲडमिन' : 'Dedicated Group Admin per wing',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            value: 'wing',
+                            groupValue: _groupingType,
+                            activeColor: const Color(0xFF1E3A8A),
+                            onChanged: (val) {
+                              if (val != null) _handleGroupingTypeChange(val, isMr);
+                            },
+                          ),
+                          const Divider(height: 1),
+                          RadioListTile<String>(
+                            title: Text(
+                              isMr ? 'मजला पद्धत (Floor-wise) - उदा. १ ला, २ रा मजला' : 'Floor-wise (e.g. 1st, 2nd Floor)',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(
+                              isMr ? 'प्रत्येक मजल्यासाठी स्वतंत्र संकलन ॲडमिन' : 'Dedicated Group Admin per floor',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            value: 'floor',
+                            groupValue: _groupingType,
+                            activeColor: const Color(0xFF1E3A8A),
+                            onChanged: (val) {
+                              if (val != null) _handleGroupingTypeChange(val, isMr);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Super Admin Tenure
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isMr ? 'सुपर ॲडमिन (सचिव) कार्यकाळ' : 'Super Admin Tenure',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                        ),
+                        TextButton.icon(
+                          icon: const Icon(Icons.timer_outlined, size: 16),
+                          label: Text(isMr ? 'मुदत वाढवा' : 'Extend Term', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          onPressed: () => _showExtendTenureDialog(auth, isMr),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    DropdownButtonFormField<int>(
+                      value: _superAdminTermMonths,
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        helperText: isMr ? 'मुदत संपत आल्यावर कमिटीला सूचना येईल' : 'App alerts committee near term completion',
+                      ),
+                      items: [
+                        DropdownMenuItem(value: 1, child: Text(isMr ? '१ महिना (1 Month)' : '1 Month')),
+                        DropdownMenuItem(value: 3, child: Text(isMr ? '३ महिने (3 Months)' : '3 Months')),
+                        DropdownMenuItem(value: 6, child: Text(isMr ? '६ महिने (6 Months)' : '6 Months')),
+                        DropdownMenuItem(value: 12, child: Text(isMr ? '१ वर्ष (12 Months)' : '1 Year (12 Months)')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setState(() => _superAdminTermMonths = val);
                       },
                     ),
                   ],
@@ -408,6 +638,48 @@ class _SocietySettingsScreenState extends State<SocietySettingsScreen> {
                   activeColor: AppTheme.primaryNavy,
                   value: _allowMobileLogin,
                   onChanged: (val) => setState(() => _allowMobileLogin = val),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Official Support Helpline Card
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF93C5FD)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.support_agent, color: Color(0xFF1E3A8A), size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isMr ? 'सोसायटी गेट अधिकृत मदत व सपोर्ट' : 'Official Help & Technical Support',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E3A8A)),
+                          ),
+                          const Text(
+                            'हेल्पलाइन: 9822681814',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF2563EB)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E3A8A),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                      icon: const Icon(Icons.phone, size: 14),
+                      label: Text(isMr ? 'कॉल' : 'Call', style: const TextStyle(fontSize: 12)),
+                      onPressed: () => launchUrl(Uri.parse('tel:9822681814'), mode: LaunchMode.externalApplication),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 28),

@@ -119,7 +119,7 @@ class FirestoreService {
     return society;
   }
 
-  /// Update society settings (Name, address, UPI ID, Bank, Logo, Mobile login toggle)
+  /// Update society settings (Name, address, UPI ID, Bank, Logo, Mobile login toggle, Grouping, Tenure)
   Future<SocietyModel> updateSocietySettings({
     required SocietyModel currentSociety,
     String? name,
@@ -135,6 +135,8 @@ class FirestoreService {
     double? defaultMaintenanceAmount,
     Uint8List? newLogoBytes,
     bool? allowMobileLogin,
+    String? groupingType,
+    int? superAdminTermMonths,
   }) async {
     String? logoUrl = currentSociety.logoUrl;
     if (newLogoBytes != null && newLogoBytes.isNotEmpty) {
@@ -153,6 +155,12 @@ class FirestoreService {
       } catch (_) {}
     }
 
+    DateTime? nextDueDate = currentSociety.superAdminNextDueDate;
+    if (superAdminTermMonths != null && superAdminTermMonths != currentSociety.superAdminTermMonths) {
+      final appointed = currentSociety.superAdminAppointedDate ?? DateTime.now();
+      nextDueDate = appointed.add(Duration(days: 30 * superAdminTermMonths));
+    }
+
     final updated = currentSociety.copyWith(
       name: name,
       nameMr: nameMr,
@@ -167,9 +175,44 @@ class FirestoreService {
       defaultMaintenanceAmount: defaultMaintenanceAmount,
       logoUrl: logoUrl,
       allowMobileLogin: allowMobileLogin,
+      groupingType: groupingType,
+      superAdminTermMonths: superAdminTermMonths,
+      superAdminNextDueDate: nextDueDate,
     );
 
     await societiesRef.doc(currentSociety.id).set(updated.toMap(), SetOptions(merge: true));
+    return updated;
+  }
+
+  /// Check if the society has any unpaid maintenance bills / outstanding dues
+  Future<bool> hasPendingSocietyDues(String societyId) async {
+    try {
+      final snap = await billsRef.where('societyId', isEqualTo: societyId).get();
+      return snap.docs.any((d) => (d.data()['status'] ?? 'unpaid') != 'paid');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Extend current Super Admin tenure by additional months (1, 3, 6, 12)
+  Future<SocietyModel> extendSuperAdminTerm({
+    required String societyId,
+    required int additionalMonths,
+  }) async {
+    final doc = await societiesRef.doc(societyId).get();
+    if (!doc.exists) throw Exception('Society not found');
+    final currentSoc = SocietyModel.fromMap(doc.data()!, doc.id);
+
+    final currentDue = currentSoc.superAdminNextDueDate ?? DateTime.now();
+    final baseDate = currentDue.isAfter(DateTime.now()) ? currentDue : DateTime.now();
+    final newDueDate = baseDate.add(Duration(days: 30 * additionalMonths));
+
+    final updated = currentSoc.copyWith(
+      superAdminTermMonths: additionalMonths,
+      superAdminNextDueDate: newDueDate,
+    );
+
+    await societiesRef.doc(societyId).set(updated.toMap(), SetOptions(merge: true));
     return updated;
   }
 
@@ -644,6 +687,11 @@ class FirestoreService {
 
   Future<void> postNotice(NoticeModel notice) async {
     await noticesRef.doc(notice.id).set(notice.toMap());
+  }
+
+  /// Delete a notice permanently from the notice board
+  Future<void> deleteNotice(String noticeId) async {
+    await noticesRef.doc(noticeId).delete();
   }
 
   Stream<List<ComplaintModel>> streamComplaints(String societyId, {String? flatNumber}) {

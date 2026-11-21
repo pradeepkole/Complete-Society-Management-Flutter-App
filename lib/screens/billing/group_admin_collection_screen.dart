@@ -62,11 +62,21 @@ class _GroupAdminCollectionScreenState extends State<GroupAdminCollectionScreen>
         title: isMr ? '$assignedGroup - मेंटेनन्स संकलन' : '$assignedGroup - Collection',
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF059669),
+        backgroundColor: unpaidBills.isEmpty ? const Color(0xFF059669) : Colors.grey.shade600,
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.send_to_mobile),
-        label: Text(isMr ? 'सुपर ॲडमिनकडे जमा करा' : 'Handover to Super Admin'),
-        onPressed: () => _showHandoverDialog(context, totalCollected, assignedGroup, isMr),
+        icon: Icon(unpaidBills.isEmpty ? Icons.send_to_mobile : Icons.lock_clock),
+        label: Text(
+          unpaidBills.isEmpty
+              ? (isMr ? 'सुपर ॲडमिनकडे जमा करा' : 'Handover to Super Admin')
+              : (isMr ? 'थकबाकी असल्याने हँडओव्हर बंद' : 'Dues Pending (Locked)'),
+        ),
+        onPressed: () {
+          if (unpaidBills.isNotEmpty) {
+            _showUnpaidDuesWarningDialog(context, unpaidBills.length, totalPending, isMr);
+          } else {
+            _showHandoverDialog(context, totalCollected, assignedGroup, isMr);
+          }
+        },
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -582,6 +592,68 @@ class _GroupAdminCollectionScreenState extends State<GroupAdminCollectionScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showUnpaidDuesWarningDialog(BuildContext context, int pendingFlatsCount, double pendingAmount, bool isMr) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning, color: Colors.red, size: 26),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                isMr ? '⚠️ थकीत मेंटेनन्स बाकी आहे!' : 'Outstanding Dues Pending!',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isMr
+                  ? 'सोसायटी नियमानुसार आपल्या गटातील सर्व सदस्यांची मेंटेनन्स देयके (Dues) १००% गोळा झाल्याशिवाय सुपर ॲडमिनकडे हस्तांतरण (Handover) करता येणार नाही.'
+                  : 'As per society rules, handover to Super Admin cannot be submitted until 100% of the maintenance dues in your group are collected.',
+              style: const TextStyle(fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFEF4444)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isMr ? 'थकीत फ्लॅट्स संख्या: $pendingFlatsCount फ्लॅट्स' : 'Pending Flats: $pendingFlatsCount flats',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF991B1B)),
+                  ),
+                  Text(
+                    isMr ? 'एकूण थकीत रक्कम: ${AppDateFormatter.formatCurrency(pendingAmount)}' : 'Total Pending: ${AppDateFormatter.formatCurrency(pendingAmount)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF991B1B)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryNavy),
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(isMr ? 'समजले (आधी वसुली करा)' : 'OK'),
+          ),
+        ],
       ),
     );
   }

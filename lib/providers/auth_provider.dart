@@ -90,8 +90,8 @@ class AuthProvider extends ChangeNotifier {
 
         _currentUser = AppUser(
           uid: firebaseUser.uid,
-          name: firebaseUser.displayName ?? 'डॉ. प्रदीप कोळे',
-          nameMr: firebaseUser.displayName ?? 'डॉ. प्रदीप कोळे',
+          name: firebaseUser.displayName ?? 'डॉ. प्रदीप कोले',
+          nameMr: firebaseUser.displayName ?? 'डॉ. प्रदीप कोले',
           email: firebaseUser.email ?? 'pradeepkole@gmail.com',
           phoneNumber: firebaseUser.phoneNumber ?? '9822681814',
           photoUrl: firebaseUser.photoURL,
@@ -220,8 +220,8 @@ class AuthProvider extends ChangeNotifier {
     try {
       final testUser = AppUser(
         uid: 'test_${DateTime.now().millisecondsSinceEpoch}',
-        name: name ?? 'डॉ. प्रदीप कोळे',
-        nameMr: name ?? 'डॉ. प्रदीप कोळे',
+        name: name ?? 'डॉ. प्रदीप कोले',
+        nameMr: name ?? 'डॉ. प्रदीप कोले',
         email: email ?? 'pradip.kole@societygate.com',
         phoneNumber: '',
         role: 'admin',
@@ -373,6 +373,8 @@ class AuthProvider extends ChangeNotifier {
     double? defaultMaintenanceAmount,
     Uint8List? newLogoBytes,
     bool? allowMobileLogin,
+    String? groupingType,
+    int? superAdminTermMonths,
   }) async {
     if (_currentSociety == null) return false;
 
@@ -396,8 +398,34 @@ class AuthProvider extends ChangeNotifier {
         defaultMaintenanceAmount: defaultMaintenanceAmount,
         newLogoBytes: newLogoBytes,
         allowMobileLogin: allowMobileLogin,
+        groupingType: groupingType,
+        superAdminTermMonths: superAdminTermMonths,
       );
 
+      _currentSociety = updated;
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Extend Super Admin term tenure
+  Future<bool> extendSuperAdminTerm(int additionalMonths) async {
+    if (_currentSociety == null) return false;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final updated = await _firestoreService.extendSuperAdminTerm(
+        societyId: _currentSociety!.id,
+        additionalMonths: additionalMonths,
+      );
       _currentSociety = updated;
       return true;
     } catch (e) {
@@ -428,8 +456,8 @@ class AuthProvider extends ChangeNotifier {
 
         user = AppUser(
           uid: 'soft_admin_$digits',
-          name: 'डॉ. प्रदीप कोळे',
-          nameMr: 'डॉ. प्रदीप कोळे',
+          name: 'डॉ. प्रदीप कोले',
+          nameMr: 'डॉ. प्रदीप कोले',
           email: 'pradeepkole@gmail.com',
           phoneNumber: phoneNumber,
           role: 'soft_admin',
@@ -455,7 +483,24 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
 
-      if (isSoftAdminPhone || user.email.toLowerCase().contains('pradeepkole@gmail')) {
+      final isSoftAdminUser = isSoftAdminPhone || user.email.toLowerCase().contains('pradeepkole@gmail') || user.isSoftAdmin;
+
+      // STRICT MOBILE LOGIN CHECK: If not SoftAdmin, society MUST have allowMobileLogin == true
+      if (!isSoftAdminUser) {
+        SocietyModel? userSoc;
+        if (user.societyId.isNotEmpty) {
+          userSoc = await _firestoreService.getSociety(user.societyId);
+        }
+
+        if (userSoc == null || !userSoc.allowMobileLogin) {
+          _errorMessage = 'आपल्या संस्थेने मोबाईल नंबर लॉगिन सुविधा बंद ठेवली आहे. कृपया Google ने साइन इन करा.';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+      }
+
+      if (isSoftAdminUser) {
         user = user.copyWith(role: 'soft_admin', isApproved: true);
       }
 
@@ -518,8 +563,8 @@ class AuthProvider extends ChangeNotifier {
 
       _currentUser = AppUser(
         uid: 'soft_admin_master',
-        name: 'डॉ. प्रदीप कोळे (SoftAdmin)',
-        nameMr: 'डॉ. प्रदीप कोळे (सॉफ्ट ॲडमिन)',
+        name: 'डॉ. प्रदीप कोले (SoftAdmin)',
+        nameMr: 'डॉ. प्रदीप कोले (सॉफ्ट ॲडमिन)',
         email: 'pradeepkole@gmail.com',
         phoneNumber: cleanPin == '458653' ? '9623458653' : '9822681814',
         role: 'soft_admin',

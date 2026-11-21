@@ -4,6 +4,7 @@ import '../../l10n/language_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/language_toggle_button.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -585,6 +586,33 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 24),
+
+              // Official Help & Support Hotline
+              InkWell(
+                onTap: () => launchUrl(Uri.parse('tel:9822681814'), mode: LaunchMode.externalApplication),
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.support_agent, size: 18, color: Color(0xFF1E3A8A)),
+                      const SizedBox(width: 8),
+                      Text(
+                        isMr ? 'मदत व सपोर्ट: 📞 9822681814' : 'Help & Support: 📞 9822681814',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
             ],
           ),
         ),

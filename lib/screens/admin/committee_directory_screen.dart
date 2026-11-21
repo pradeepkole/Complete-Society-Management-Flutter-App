@@ -86,21 +86,83 @@ class CommitteeDirectoryScreen extends StatelessWidget {
                         ),
                         if (auth.canManageExpenses) ...[
                           const SizedBox(height: 10),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
-                            icon: const Icon(Icons.person_add, size: 16),
-                            label: Text(isMr ? 'नवीन सुपर ॲडमिन नियुक्त करा' : 'Appoint New Super Admin'),
-                            onPressed: () => _showAppointSuperAdminDialog(context, society, members, isMr),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                                icon: const Icon(Icons.person_add, size: 16),
+                                label: Text(isMr ? 'नवीन सुपर ॲडमिन नियुक्त करा' : 'Appoint New Super Admin'),
+                                onPressed: () => _showAppointSuperAdminDialog(context, society, members, isMr),
+                              ),
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red.shade900,
+                                  side: BorderSide(color: Colors.red.shade700),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                                icon: const Icon(Icons.timer_outlined, size: 16),
+                                label: Text(isMr ? 'कार्यकाळ वाढवा (Extend)' : 'Extend Tenure'),
+                                onPressed: () => _showExtendTenureModal(context, auth, isMr),
+                              ),
+                            ],
                           ),
                         ],
                       ],
                     ),
                   ),
+
+                // Grouping Structure Mode Bar (With strict dues check)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(isWingWise ? Icons.apartment : Icons.stairs, color: const Color(0xFF1E3A8A), size: 24),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isMr ? 'व्यवस्थापन रचना:' : 'Grouping Mode:',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            ),
+                            Text(
+                              isWingWise
+                                  ? (isMr ? '🏢 विंग पद्धत (Wing-wise)' : '🏢 Wing-wise Mode')
+                                  : (isMr ? '🏬 मजला पद्धत (Floor-wise)' : '🏬 Floor-wise Mode'),
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (auth.canManageExpenses)
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1E3A8A),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                          onPressed: () => _toggleGroupingMode(context, auth, society, isMr),
+                          child: Text(isMr ? 'पद्धत बदला' : 'Change Mode'),
+                        ),
+                    ],
+                  ),
+                ),
 
                 // Transparency Info Card
                 Container(
@@ -569,5 +631,114 @@ class CommitteeDirectoryScreen extends StatelessWidget {
         ),
       ),
     );
+  void _showExtendTenureModal(BuildContext context, AuthProvider auth, bool isMr) {
+    int additionalMonths = 3;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(isMr ? 'सुपर ॲडमिन कार्यकाळ वाढवा' : 'Extend Super Admin Tenure'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isMr ? 'चालू सुपर ॲडमिनची मुदत किती कालावधीने वाढवायची आहे?' : 'Extend current Super Admin term by:',
+                style: const TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                value: additionalMonths,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                items: [
+                  DropdownMenuItem(value: 1, child: Text(isMr ? '१ महिना (1 Month)' : '1 Month')),
+                  DropdownMenuItem(value: 3, child: Text(isMr ? '३ महिने (3 Months)' : '3 Months')),
+                  DropdownMenuItem(value: 6, child: Text(isMr ? '६ महिने (6 Months)' : '6 Months')),
+                  DropdownMenuItem(value: 12, child: Text(isMr ? '१ वर्ष (12 Months)' : '1 Year (12 Months)')),
+                ],
+                onChanged: (val) {
+                  if (val != null) setModalState(() => additionalMonths = val);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isMr ? 'रद्द करा' : 'Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryNavy, foregroundColor: Colors.white),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final success = await auth.extendSuperAdminTerm(additionalMonths);
+                if (context.mounted && success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: Colors.green,
+                      content: Text(isMr ? 'कार्यकाळ यशस्वीरीत्या वाढवण्यात आला!' : 'Tenure extended successfully!'),
+                    ),
+                  );
+                }
+              },
+              child: Text(isMr ? 'मुदत वाढवा' : 'Extend Term'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggleGroupingMode(BuildContext context, AuthProvider auth, SocietyModel society, bool isMr) async {
+    // STRICT RULE: If any dues remain pending, cannot change grouping structure!
+    final hasDues = await FirestoreService.instance.hasPendingSocietyDues(society.id);
+    if (hasDues) {
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.warning, color: Colors.red),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isMr ? '⚠️ थकबाकी शिल्लक आहे!' : 'Outstanding Dues Pending!',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              isMr
+                  ? 'संस्थेतील सर्व मेंटेनन्स देयके (Dues) १००% पूर्ण भरल्याशिवाय व्यवस्थापन गट पद्धत (विंग/मजला) बदलता येणार नाही. कृपया आधी सर्व थकीत बिले वसूल करा.'
+                  : 'Management grouping structure (Wing/Floor) cannot be changed while there are unpaid maintenance bills. Please collect all dues first.',
+              style: const TextStyle(fontSize: 13, height: 1.4),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(isMr ? 'समजले' : 'OK'),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
+    final newType = society.isWingWise ? 'floor' : 'wing';
+    final typeName = newType == 'wing' ? (isMr ? 'विंग पद्धत' : 'Wing-wise') : (isMr ? 'मजला पद्धत' : 'Floor-wise');
+
+    final success = await auth.updateSocietySettings(groupingType: newType);
+    if (context.mounted && success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.green,
+          content: Text(isMr ? 'व्यवस्थापन रचना बदलून $typeName झाली!' : 'Grouping mode updated to $typeName!'),
+        ),
+      );
+    }
   }
 }
