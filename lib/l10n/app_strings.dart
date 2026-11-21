@@ -109,9 +109,6 @@ class AppStrings {
       'viewAttachedReceipt': 'View Attached Invoice',
 
       // Accounting Categories (English)
-      'cat_maintenance_collection': 'Maintenance Collection',
-      'cat_clubhouse_rent': 'Clubhouse / Hall Rent',
-      'cat_parking_charges': 'Extra Parking Charges',
       'cat_maintenance_collection': 'Monthly Maintenance',
       'cat_parking_charges': 'Parking Charges',
       'cat_transfer_fee': 'Flat Transfer Fees',
