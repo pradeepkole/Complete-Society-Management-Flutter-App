@@ -38,9 +38,9 @@ class _CreateSocietyScreenState extends State<CreateSocietyScreen> {
     try {
       final XFile? file = await _picker.pickImage(
         source: source,
-        maxWidth: 600,
-        maxHeight: 600,
-        imageQuality: 85,
+        maxWidth: 300,
+        maxHeight: 300,
+        imageQuality: 75,
       );
       if (file != null) {
         final bytes = await file.readAsBytes();

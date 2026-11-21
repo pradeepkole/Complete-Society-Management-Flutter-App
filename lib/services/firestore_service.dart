@@ -78,7 +78,8 @@ class FirestoreService {
       } catch (_) {}
     }
 
-    final appointedDate = DateTime.now();
+    final now = DateTime.now();
+    final appointedDate = now;
     final nextDueDate = appointedDate.add(Duration(days: 30 * superAdminTermMonths));
 
     final society = SocietyModel(
@@ -100,7 +101,12 @@ class FirestoreService {
       superAdminAppointedDate: appointedDate,
       superAdminNextDueDate: nextDueDate,
       defaultMaintenanceAmount: 2000,
-      createdAt: DateTime.now(),
+      createdAt: now,
+      subscriptionPlan: 'demo',
+      subscriptionStatus: 'active',
+      subscriptionStartDate: now,
+      subscriptionEndDate: now.add(const Duration(days: 45)),
+      subscriptionDaysAdded: 45,
     );
 
     await societiesRef.doc(societyId).set(society.toMap());
@@ -640,20 +646,128 @@ class FirestoreService {
     required String newSuperAdminUid,
     required int termMonths,
     required String appointedByUid,
+    String? newGroupingType,
   }) async {
     final appointedDate = DateTime.now();
     final nextDueDate = appointedDate.add(Duration(days: 30 * termMonths));
-    await societiesRef.doc(societyId).update({
+    final updateMap = <String, dynamic>{
       'superAdminUid': newSuperAdminUid,
       'superAdminTermMonths': termMonths,
       'superAdminAppointedDate': appointedDate.toIso8601String(),
       'superAdminNextDueDate': nextDueDate.toIso8601String(),
-    });
+    };
+    if (newGroupingType != null && (newGroupingType == 'wing' || newGroupingType == 'floor')) {
+      updateMap['groupingType'] = newGroupingType;
+    }
+    await societiesRef.doc(societyId).update(updateMap);
 
     await usersRef.doc(newSuperAdminUid).update({
       'role': 'super_admin',
       'designation': 'सुपर ॲडमिन (सचिव)',
     });
+  }
+
+  /// 1-Year PRO Renewal / Top-up by SoftAdmin (+365 days)
+  Future<SocietyModel> renewSocietyProYear({required String societyId}) async {
+    final society = await getSociety(societyId);
+    if (society == null) throw Exception('Society not found');
+
+    final now = DateTime.now();
+    final baseDate = (society.subscriptionEndDate != null && society.subscriptionEndDate!.isAfter(now))
+        ? society.subscriptionEndDate!
+        : now;
+    final newEndDate = baseDate.add(const Duration(days: 365));
+
+    final updated = society.copyWith(
+      subscriptionPlan: 'pro',
+      subscriptionStatus: 'active',
+      subscriptionStartDate: society.subscriptionStartDate ?? now,
+      subscriptionEndDate: newEndDate,
+      subscriptionDaysAdded: (society.subscriptionDaysAdded) + 365,
+    );
+
+    await societiesRef.doc(societyId).update({
+      'subscriptionPlan': 'pro',
+      'subscriptionStatus': 'active',
+      'subscriptionEndDate': newEndDate.toIso8601String(),
+      'subscriptionDaysAdded': updated.subscriptionDaysAdded,
+    });
+
+    return updated;
+  }
+
+  /// Toggle subscription status: 'active' or 'disabled' (OFF) by SoftAdmin
+  Future<SocietyModel> toggleSocietySubscription({
+    required String societyId,
+    required bool enable,
+  }) async {
+    final society = await getSociety(societyId);
+    if (society == null) throw Exception('Society not found');
+
+    final newStatus = enable ? 'active' : 'disabled';
+    final updated = society.copyWith(subscriptionStatus: newStatus);
+
+    await societiesRef.doc(societyId).update({
+      'subscriptionStatus': newStatus,
+    });
+
+    return updated;
+  }
+
+  /// Adjust subscription days (+/- days) by SoftAdmin
+  Future<SocietyModel> adjustSocietySubscriptionDays({
+    required String societyId,
+    required int additionalDays,
+  }) async {
+    final society = await getSociety(societyId);
+    if (society == null) throw Exception('Society not found');
+
+    final now = DateTime.now();
+    final currentExpiry = society.effectiveExpiryDate;
+    final baseDate = currentExpiry.isAfter(now) ? currentExpiry : now;
+    final newEndDate = baseDate.add(Duration(days: additionalDays));
+
+    final updated = society.copyWith(
+      subscriptionStatus: 'active',
+      subscriptionEndDate: newEndDate,
+      subscriptionDaysAdded: (society.subscriptionDaysAdded + additionalDays).clamp(0, 99999),
+    );
+
+    await societiesRef.doc(societyId).update({
+      'subscriptionStatus': 'active',
+      'subscriptionEndDate': newEndDate.toIso8601String(),
+      'subscriptionDaysAdded': updated.subscriptionDaysAdded,
+    });
+
+    return updated;
+  }
+
+  /// Custom full update of subscription by SoftAdmin
+  Future<SocietyModel> updateSocietySubscription({
+    required String societyId,
+    required String plan, // 'demo' or 'pro'
+    required String status, // 'active', 'disabled', 'expired'
+    required DateTime endDate,
+    int? daysAdded,
+  }) async {
+    final society = await getSociety(societyId);
+    if (society == null) throw Exception('Society not found');
+
+    final updated = society.copyWith(
+      subscriptionPlan: plan,
+      subscriptionStatus: status,
+      subscriptionEndDate: endDate,
+      subscriptionDaysAdded: daysAdded ?? society.subscriptionDaysAdded,
+    );
+
+    await societiesRef.doc(societyId).update({
+      'subscriptionPlan': plan,
+      'subscriptionStatus': status,
+      'subscriptionEndDate': endDate.toIso8601String(),
+      if (daysAdded != null) 'subscriptionDaysAdded': daysAdded,
+    });
+
+    return updated;
   }
 
   Future<void> assignMemberRole({
@@ -664,10 +778,53 @@ class FirestoreService {
   }) async {
     final updates = <String, dynamic>{
       'role': role,
-      if (assignedGroup != null) 'assignedGroup': assignedGroup,
-      if (designation != null) 'designation': designation,
+      'assignedGroup': assignedGroup,
+      'designation': designation,
     };
     await usersRef.doc(uid).update(updates);
+  }
+
+  /// Rotate Group Admin in a society for a given wing/floor
+  /// Demotes previous rep to normal member and promotes new member to group_admin
+  Future<void> rotateGroupAdmin({
+    required String societyId,
+    required String groupName,
+    required String newUid,
+    String? oldUid,
+    bool isMr = true,
+  }) async {
+    // 1. Demote old group admin if specified
+    if (oldUid != null && oldUid.isNotEmpty && oldUid != newUid) {
+      await usersRef.doc(oldUid).update({
+        'role': 'member',
+        'assignedGroup': null,
+        'designation': isMr ? 'सभासद' : 'Member',
+      });
+    }
+
+    // 2. Also safety check: demote any other group admin in the same society with this assignedGroup
+    final snap = await usersRef
+        .where('societyId', isEqualTo: societyId)
+        .where('role', isEqualTo: 'group_admin')
+        .where('assignedGroup', isEqualTo: groupName)
+        .get();
+    for (final doc in snap.docs) {
+      if (doc.id != newUid) {
+        await doc.reference.update({
+          'role': 'member',
+          'assignedGroup': null,
+          'designation': isMr ? 'सभासद' : 'Member',
+        });
+      }
+    }
+
+    // 3. Promote new group admin
+    final desig = isMr ? '$groupName प्रतिनिधी (रोटेशन)' : '$groupName Rep (Rotation)';
+    await usersRef.doc(newUid).update({
+      'role': 'group_admin',
+      'assignedGroup': groupName,
+      'designation': desig,
+    });
   }
 
   // =======================================================

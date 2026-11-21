@@ -138,6 +138,133 @@ class _SoftAdminControlScreenState extends State<SoftAdminControlScreen> with Si
                         ),
                         const SizedBox(height: 14),
 
+                        // Subscription Management Card (SoftAdmin Exclusive)
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFF86EFAC)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    currentSoc.isPro ? Icons.stars : Icons.bolt,
+                                    color: currentSoc.isPro ? const Color(0xFFD97706) : const Color(0xFF0284C7),
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      isMr ? 'सबस्क्रिप्शन व परवाना नियंत्रण' : 'Subscription & License Control',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF166534)),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: currentSoc.isSubscriptionDisabled
+                                          ? Colors.red.shade700
+                                          : (currentSoc.isPro ? const Color(0xFFD97706) : const Color(0xFF0284C7)),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      currentSoc.isSubscriptionDisabled
+                                          ? (isMr ? '🔴 बंद (OFF)' : 'OFF')
+                                          : (currentSoc.isPro ? '⭐ PRO' : '⚡ DEMO'),
+                                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                isMr
+                                    ? 'वैधता समाप्ती: ${AppDateFormatter.formatDate(currentSoc.effectiveExpiryDate, isMarathi: isMr)} • ${currentSoc.remainingSubscriptionDays} दिवस शिल्लक'
+                                    : 'Valid Until: ${AppDateFormatter.formatDate(currentSoc.effectiveExpiryDate, isMarathi: isMr)} • ${currentSoc.remainingSubscriptionDays} days left',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: currentSoc.remainingSubscriptionDays <= 15 ? Colors.red.shade700 : const Color(0xFF14532D),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF15803D),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                    ),
+                                    icon: const Icon(Icons.add_task, size: 16),
+                                    label: Text(isMr ? '⭐ +१ वर्ष Pro टॉप-अप' : '⭐ +1 Year Pro Renew'),
+                                    onPressed: () async {
+                                      final ok = await auth.renewSocietyProYear(currentSoc.id);
+                                      if (context.mounted && ok) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            backgroundColor: Colors.green,
+                                            content: Text(isMr ? '१ वर्ष Pro सबस्क्रिप्शन यशस्वीरित्या सक्रिय झाले!' : 'Pro subscription renewed for 1 year!'),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                  OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: const Color(0xFF166534),
+                                      side: const BorderSide(color: Color(0xFF166534)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                    ),
+                                    icon: const Icon(Icons.edit_calendar, size: 16),
+                                    label: Text(isMr ? 'दिवस बदला (+/-)' : 'Adjust Days'),
+                                    onPressed: () => _showAdjustSubscriptionDialog(context, currentSoc, auth, isMr),
+                                  ),
+                                  OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: currentSoc.isSubscriptionDisabled ? Colors.green.shade800 : Colors.red.shade800,
+                                      side: BorderSide(color: currentSoc.isSubscriptionDisabled ? Colors.green : Colors.red),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                    ),
+                                    icon: Icon(currentSoc.isSubscriptionDisabled ? Icons.check_circle_outline : Icons.power_settings_new, size: 16),
+                                    label: Text(
+                                      currentSoc.isSubscriptionDisabled
+                                          ? (isMr ? 'सबस्क्रिप्शन चालू करा (ON)' : 'Enable (ON)')
+                                          : (isMr ? 'सबस्क्रिप्शन बंद करा (OFF)' : 'Disable (OFF)'),
+                                    ),
+                                    onPressed: () async {
+                                      final enable = currentSoc.isSubscriptionDisabled;
+                                      final ok = await auth.toggleSocietySubscription(currentSoc.id, enable);
+                                      if (context.mounted && ok) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            backgroundColor: enable ? Colors.green : Colors.red,
+                                            content: Text(
+                                              enable
+                                                  ? (isMr ? 'सबस्क्रिप्शन चालू केले!' : 'Subscription Enabled!')
+                                                  : (isMr ? 'सबस्क्रिप्शन बंद केले (OFF)!' : 'Subscription Disabled (OFF)!'),
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
                         // Master Action Card: Blank All Transactions
                         Container(
                           padding: const EdgeInsets.all(14),
@@ -490,9 +617,50 @@ class _SoftAdminControlScreenState extends State<SoftAdminControlScreen> with Si
                             backgroundColor: isSelected ? const Color(0xFF1E3A8A) : Colors.grey.shade200,
                             child: Icon(Icons.business, color: isSelected ? Colors.white : Colors.black54),
                           ),
-                          title: Text(isMr ? soc.nameMr : soc.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('कोड: ${soc.societyCode} • फ्लॅट्स: ${soc.totalFlats} • ${soc.city}'),
-                          trailing: isSelected ? const Icon(Icons.check_circle, color: Colors.green) : null,
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(isMr ? soc.nameMr : soc.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: soc.isSubscriptionDisabled
+                                      ? Colors.red.shade700
+                                      : (soc.isPro ? const Color(0xFFD97706) : const Color(0xFF0284C7)),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  soc.isSubscriptionDisabled
+                                      ? 'OFF'
+                                      : (soc.isPro ? 'PRO • ${soc.remainingSubscriptionDays}d' : 'DEMO • ${soc.remainingSubscriptionDays}d'),
+                                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                          subtitle: Text('कोड: ${soc.societyCode} • ${soc.city} • मुदत: ${AppDateFormatter.formatDate(soc.effectiveExpiryDate, isMarathi: isMr)}'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.add_task, color: Color(0xFF15803D), size: 20),
+                                tooltip: isMr ? '+१ वर्ष Pro रिन्यू करा' : '+1 Year Pro Renew',
+                                onPressed: () async {
+                                  await auth.renewSocietyProYear(soc.id);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        backgroundColor: Colors.green,
+                                        content: Text(isMr ? '${soc.nameMr} ला +१ वर्ष Pro सबस्क्रिप्शन जोडले!' : '+1 Year Pro renewed for ${soc.name}!'),
+                                      ),
+                                    );
+                                  }
+                                },
+                              ),
+                              if (isSelected) const Icon(Icons.check_circle, color: Colors.green),
+                            ],
+                          ),
                           onTap: () {
                             auth.switchSocietyForSoftAdmin(soc);
                             Navigator.pop(ctx);
@@ -510,6 +678,71 @@ class _SoftAdminControlScreenState extends State<SoftAdminControlScreen> with Si
           },
         );
       },
+    );
+  }
+
+  void _showAdjustSubscriptionDialog(BuildContext context, SocietyModel society, AuthProvider auth, bool isMr) {
+    int daysToAdd = 30;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(isMr ? 'सबस्क्रिप्शन दिवस वाढवा / कमी करा' : 'Adjust Subscription Days'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isMr
+                    ? 'चालू मुदत: ${AppDateFormatter.formatDate(society.effectiveExpiryDate, isMarathi: isMr)} (${society.remainingSubscriptionDays} दिवस बाकी)'
+                    : 'Current Expiry: ${AppDateFormatter.formatDate(society.effectiveExpiryDate, isMarathi: isMr)} (${society.remainingSubscriptionDays} days remaining)',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 14),
+              Text(isMr ? 'बदल करायचे दिवस निवडा:' : 'Select days to adjust:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<int>(
+                value: daysToAdd,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                items: [
+                  DropdownMenuItem(value: 365, child: Text(isMr ? '+३६५ दिवस (+१ वर्ष Pro)' : '+365 Days (+1 Year Pro)')),
+                  DropdownMenuItem(value: 180, child: Text(isMr ? '+१८० दिवस (+६ महिने)' : '+180 Days (+6 Months)')),
+                  DropdownMenuItem(value: 90, child: Text(isMr ? '+९० दिवस (+३ महिने)' : '+90 Days (+3 Months)')),
+                  DropdownMenuItem(value: 45, child: Text(isMr ? '+४५ दिवस (Demo Top-up)' : '+45 Days (Demo Top-up)')),
+                  DropdownMenuItem(value: 30, child: Text(isMr ? '+३० दिवस (+१ महिना)' : '+30 Days (+1 Month)')),
+                  DropdownMenuItem(value: -15, child: Text(isMr ? '-१५ दिवस (कमी करा)' : '-15 Days (Reduce)')),
+                  DropdownMenuItem(value: -30, child: Text(isMr ? '-३० दिवस (कमी करा)' : '-30 Days (Reduce)')),
+                ],
+                onChanged: (val) {
+                  if (val != null) setDlgState(() => daysToAdd = val);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isMr ? 'रद्द' : 'Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A), foregroundColor: Colors.white),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final success = await auth.adjustSocietySubscriptionDays(society.id, daysToAdd);
+                if (context.mounted && success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: Colors.green,
+                      content: Text(isMr ? 'सबस्क्रिप्शन दिवस यशस्वीरित्या बदलले!' : 'Subscription days updated!'),
+                    ),
+                  );
+                }
+              },
+              child: Text(isMr ? 'बदल लागू करा' : 'Apply'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

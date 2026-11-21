@@ -25,6 +25,11 @@ class SocietyModel {
   final String? superAdminUid;
   final String? chairmanUid;
   final DateTime? createdAt;
+  final String subscriptionPlan; // 'demo' or 'pro'
+  final String subscriptionStatus; // 'active', 'disabled', 'expired'
+  final DateTime? subscriptionStartDate;
+  final DateTime? subscriptionEndDate;
+  final int subscriptionDaysAdded; // e.g. 45 for demo, 365 for pro
 
   SocietyModel({
     required this.id,
@@ -53,6 +58,11 @@ class SocietyModel {
     this.superAdminUid,
     this.chairmanUid,
     this.createdAt,
+    this.subscriptionPlan = 'demo',
+    this.subscriptionStatus = 'active',
+    this.subscriptionStartDate,
+    this.subscriptionEndDate,
+    this.subscriptionDaysAdded = 45,
   });
 
   bool get hasLogo => logoUrl != null && logoUrl!.trim().isNotEmpty;
@@ -60,12 +70,30 @@ class SocietyModel {
   bool get isWingWise => groupingType != 'floor';
   bool get isFloorWise => groupingType == 'floor';
 
-  bool get isSuperAdminTermDue {
-    if (superAdminNextDueDate == null) return false;
-    final now = DateTime.now();
-    return now.isAfter(superAdminNextDueDate!) ||
-        superAdminNextDueDate!.difference(now).inDays <= 7;
+  // Subscription helpers
+  bool get isPro => subscriptionPlan.toLowerCase() == 'pro' || subscriptionDaysAdded >= 365;
+
+  DateTime get effectiveExpiryDate {
+    if (subscriptionEndDate != null) return subscriptionEndDate!;
+    if (createdAt != null) return createdAt!.add(const Duration(days: 45));
+    return DateTime.now().add(const Duration(days: 45));
   }
+
+  int get remainingSubscriptionDays {
+    final now = DateTime.now();
+    final expiry = effectiveExpiryDate;
+    final diff = expiry.difference(now);
+    if (diff.isNegative) return 0;
+    return (diff.inSeconds / 86400).ceil();
+  }
+
+  bool get isSubscriptionActive => subscriptionStatus == 'active' && remainingSubscriptionDays > 0;
+  bool get isSubscriptionDisabled => subscriptionStatus == 'disabled';
+  bool get isSubscriptionExpired => remainingSubscriptionDays <= 0 || subscriptionStatus == 'expired';
+
+  // Rule: Super Admin post is fixed (permanent). Group Admins rotate.
+  bool get isSuperAdminFixed => true;
+  bool get isSuperAdminTermDue => false;
 
   factory SocietyModel.fromMap(Map<String, dynamic> data, String id) {
     return SocietyModel(
@@ -103,6 +131,15 @@ class SocietyModel {
               ? DateTime.fromMillisecondsSinceEpoch(data['createdAt'])
               : DateTime.tryParse(data['createdAt'].toString()))
           : null,
+      subscriptionPlan: data['subscriptionPlan'] ?? 'demo',
+      subscriptionStatus: data['subscriptionStatus'] ?? 'active',
+      subscriptionStartDate: data['subscriptionStartDate'] != null
+          ? DateTime.tryParse(data['subscriptionStartDate'].toString())
+          : null,
+      subscriptionEndDate: data['subscriptionEndDate'] != null
+          ? DateTime.tryParse(data['subscriptionEndDate'].toString())
+          : null,
+      subscriptionDaysAdded: (data['subscriptionDaysAdded'] as num?)?.toInt() ?? 45,
     );
   }
 
@@ -133,6 +170,11 @@ class SocietyModel {
       'superAdminUid': superAdminUid,
       'chairmanUid': chairmanUid,
       'createdAt': (createdAt ?? DateTime.now()).millisecondsSinceEpoch,
+      'subscriptionPlan': subscriptionPlan,
+      'subscriptionStatus': subscriptionStatus,
+      'subscriptionStartDate': subscriptionStartDate?.toIso8601String(),
+      'subscriptionEndDate': subscriptionEndDate?.toIso8601String(),
+      'subscriptionDaysAdded': subscriptionDaysAdded,
     };
   }
 
@@ -161,6 +203,11 @@ class SocietyModel {
     DateTime? superAdminNextDueDate,
     String? superAdminUid,
     String? chairmanUid,
+    String? subscriptionPlan,
+    String? subscriptionStatus,
+    DateTime? subscriptionStartDate,
+    DateTime? subscriptionEndDate,
+    int? subscriptionDaysAdded,
   }) {
     return SocietyModel(
       id: id,
@@ -189,6 +236,11 @@ class SocietyModel {
       superAdminUid: superAdminUid ?? this.superAdminUid,
       chairmanUid: chairmanUid ?? this.chairmanUid,
       createdAt: createdAt,
+      subscriptionPlan: subscriptionPlan ?? this.subscriptionPlan,
+      subscriptionStatus: subscriptionStatus ?? this.subscriptionStatus,
+      subscriptionStartDate: subscriptionStartDate ?? this.subscriptionStartDate,
+      subscriptionEndDate: subscriptionEndDate ?? this.subscriptionEndDate,
+      subscriptionDaysAdded: subscriptionDaysAdded ?? this.subscriptionDaysAdded,
     );
   }
 }

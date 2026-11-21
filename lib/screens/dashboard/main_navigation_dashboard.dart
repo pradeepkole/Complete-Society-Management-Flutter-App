@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/billing_provider.dart';
@@ -7,6 +8,7 @@ import '../../providers/notice_provider.dart';
 import '../../providers/complaint_provider.dart';
 import '../../providers/visitor_provider.dart';
 import '../../l10n/language_provider.dart';
+import '../../utils/date_formatter.dart';
 import '../../widgets/custom_app_bar.dart';
 import 'admin_dashboard_tab.dart';
 import 'member_dashboard_tab.dart';
@@ -31,11 +33,13 @@ class MainNavigationDashboard extends StatefulWidget {
 
 class _MainNavigationDashboardState extends State<MainNavigationDashboard> {
   int _currentIndex = 0;
+  bool _hasCheckedSubscription = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final auth = Provider.of<AuthProvider>(context);
+    final lang = Provider.of<LanguageProvider>(context);
     final societyId = auth.currentSociety?.id;
     if (societyId != null && societyId.isNotEmpty) {
       Provider.of<BillingProvider>(context, listen: false).setSocietyId(societyId);
@@ -43,7 +47,140 @@ class _MainNavigationDashboardState extends State<MainNavigationDashboard> {
       Provider.of<NoticeProvider>(context, listen: false).setSocietyId(societyId);
       Provider.of<ComplaintProvider>(context, listen: false).setSocietyId(societyId);
       Provider.of<VisitorProvider>(context, listen: false).setSocietyId(societyId);
+
+      _checkSubscriptionGuard(auth, lang);
     }
+  }
+
+  void _checkSubscriptionGuard(AuthProvider auth, LanguageProvider lang) {
+    if (_hasCheckedSubscription) return;
+    _hasCheckedSubscription = true;
+
+    final society = auth.currentSociety;
+    if (society == null) return;
+    final isMr = lang.isMarathi;
+
+    // SoftAdmin is never blocked from using the app
+    if (auth.isSoftAdmin) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      // 1. Subscription OFF (Disabled by Admin)
+      if (society.isSubscriptionDisabled) {
+        _showBlockingExitDialog(
+          context: context,
+          isMr: isMr,
+          title: isMr ? '🚫 संपर्क करा: ॲडमिन' : '🚫 Contact Admin',
+          message: isMr
+              ? 'आपल्या संस्थेचे ॲप सबस्क्रिप्शन प्रशासकाकडून बंद (Disabled) करण्यात आले आहे. कृपया चालू करण्यासाठी ॲडमिनशी संपर्क साधा.\n\n📞 संपर्क: 9822681814'
+              : 'App subscription has been disabled by admin. Please contact admin to activate.\n\n📞 Contact: 9822681814',
+        );
+        return;
+      }
+
+      // 2. Subscription Expired
+      if (society.isSubscriptionExpired) {
+        _showBlockingExitDialog(
+          context: context,
+          isMr: isMr,
+          title: isMr ? '⏳ सबस्क्रिप्शन मुदत संपली!' : '⏳ Subscription Expired!',
+          message: isMr
+              ? 'आपल्या संस्थेचा सबस्क्रिप्शन कालावधी संपुष्टात आला आहे. ॲप सेवा पूर्ववत सुरू करण्यासाठी कृपया सबस्क्रिप्शन रिन्यू (Renew) करा.\n\n📞 रिन्यूअलसाठी संपर्क: 9822681814'
+              : 'Society subscription has expired. Please renew subscription to continue.\n\n📞 Renewal Contact: 9822681814',
+        );
+        return;
+      }
+
+      // 3. Pro Warning (<= 45 days remaining)
+      if (society.isPro && society.remainingSubscriptionDays <= 45 && society.remainingSubscriptionDays > 0) {
+        _showProceedWarningDialog(
+          context: context,
+          isMr: isMr,
+          title: isMr ? '⚠️ सबस्क्रिप्शन रिन्यूअल सूचना (Pro)' : '⚠️ Pro Renewal Notice',
+          message: isMr
+              ? 'आपल्या संस्थेचे Pro सबस्क्रिप्शन लवकरच समाप्त होणार आहे.\n\n📅 शेवटची तारीख: ${AppDateFormatter.formatDate(society.effectiveExpiryDate, isMarathi: isMr)}\n⏳ शिल्लक दिवस: ${society.remainingSubscriptionDays} दिवस\n\nकृपया मुदत संपण्यापूर्वी रिन्यूअल करून घ्या.\n📞 संपर्क: 9822681814'
+              : 'Pro subscription will expire soon.\n\n📅 Expiry Date: ${AppDateFormatter.formatDate(society.effectiveExpiryDate, isMarathi: isMr)}\n⏳ Remaining: ${society.remainingSubscriptionDays} days\n\n📞 Contact: 9822681814',
+        );
+        return;
+      }
+
+      // 4. Demo Warning (<= 15 days remaining)
+      if (!society.isPro && society.remainingSubscriptionDays <= 15 && society.remainingSubscriptionDays > 0) {
+        _showProceedWarningDialog(
+          context: context,
+          isMr: isMr,
+          title: isMr ? '⚠️ डेमो कालावधी समाप्ती सूचना' : '⚠️ Demo Expiry Notice',
+          message: isMr
+              ? 'आपल्या संस्थेचा डेमो कालावधी लवकरच समाप्त होणार आहे.\n\n📅 शेवटची तारीख: ${AppDateFormatter.formatDate(society.effectiveExpiryDate, isMarathi: isMr)}\n⏳ शिल्लक दिवस: ${society.remainingSubscriptionDays} दिवस\n\nसर्व वैशिष्ट्ये अखंडित चालू ठेवण्यासाठी कृपया १ वर्ष Pro सबस्क्रिप्शनमध्ये अपग्रेड करा.\n📞 संपर्क: 9822681814'
+              : 'Demo period will expire soon.\n\n📅 Expiry Date: ${AppDateFormatter.formatDate(society.effectiveExpiryDate, isMarathi: isMr)}\n⏳ Remaining: ${society.remainingSubscriptionDays} days\n\n📞 Contact: 9822681814',
+        );
+        return;
+      }
+    });
+  }
+
+  void _showBlockingExitDialog({
+    required BuildContext context,
+    required bool isMr,
+    required String title,
+    required String message,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red),
+              const SizedBox(width: 8),
+              Expanded(child: Text(title, style: const TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.bold))),
+            ],
+          ),
+          content: Text(message, style: const TextStyle(fontSize: 13, height: 1.4)),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              onPressed: () => SystemNavigator.pop(),
+              child: Text(isMr ? 'ठीक आहे (बाहेर पडा)' : 'OK (Exit App)'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showProceedWarningDialog({
+    required BuildContext context,
+    required bool isMr,
+    required String title,
+    required String message,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+            const SizedBox(width: 8),
+            Expanded(child: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold))),
+          ],
+        ),
+        content: Text(message, style: const TextStyle(fontSize: 13, height: 1.4)),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A), foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(isMr ? 'समजले (पुढे जा)' : 'OK (Proceed)'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

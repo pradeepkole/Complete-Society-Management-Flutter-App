@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/society_model.dart';
+import '../utils/date_formatter.dart';
 import '../l10n/language_provider.dart';
 import '../providers/auth_provider.dart';
 import '../screens/admin/society_settings_screen.dart';
@@ -86,6 +88,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ],
       ),
       actions: [
+        if (society != null)
+          _buildSubscriptionBadge(context, society, isMr),
         if (actions != null) ...actions!,
         if (showLanguageToggle)
           const Padding(
@@ -109,6 +113,160 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           onPressed: () => auth.signOut(),
         ),
       ],
+    );
+  }
+
+  Widget _buildSubscriptionBadge(BuildContext context, SocietyModel society, bool isMr) {
+    final isPro = society.isPro;
+    final days = society.remainingSubscriptionDays;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => _showSubscriptionInfoSheet(context, society, isMr),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            gradient: isPro
+                ? const LinearGradient(
+                    colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : const LinearGradient(
+                    colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isPro ? const Color(0xFFFDE68A) : const Color(0xFFBAE6FD),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isPro ? Icons.stars : Icons.bolt,
+                color: isPro ? const Color(0xFFFEF3C7) : const Color(0xFFFCD34D),
+                size: 13,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                isPro ? 'PRO • $days' : 'DEMO • $days',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSubscriptionInfoSheet(BuildContext context, SocietyModel society, bool isMr) {
+    final isPro = society.isPro;
+    final days = society.remainingSubscriptionDays;
+    final expiryStr = AppDateFormatter.formatDate(society.effectiveExpiryDate, isMarathi: isMr);
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isPro ? Icons.stars : Icons.bolt,
+                  color: isPro ? const Color(0xFFF59E0B) : const Color(0xFF0284C7),
+                  size: 28,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isPro
+                            ? (isMr ? '🌟 Pro परवाना (१ वर्ष)' : '🌟 Pro License (1 Year)')
+                            : (isMr ? '⚡ Demo चाचणी (४५ दिवस)' : '⚡ Demo Trial (45 Days)'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        isMr ? 'सोसायटी गेट प्रणाली परवाना' : 'Society Gate License',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(isMr ? 'वैधता समाप्ती तारीख:' : 'Expiry Date:', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                Text(expiryStr, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(isMr ? 'शिल्लक कालावधी:' : 'Days Remaining:', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                Text(
+                  isMr ? '$days दिवस बाकी' : '$days days left',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: days <= 15 ? Colors.red : (isPro ? const Color(0xFFD97706) : const Color(0xFF0284C7)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.support_agent, color: Color(0xFF1E3A8A)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      isMr
+                          ? 'रिन्यूअल किंवा प्रो अपग्रेडसाठी संपर्क:\n📞 ९८२२६८१८१४ (9822681814)'
+                          : 'For renewal or Pro upgrade contact:\n📞 9822681814',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF1E40AF), fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -149,17 +149,28 @@ class CommitteeDirectoryScreen extends StatelessWidget {
                           ],
                         ),
                       ),
-                      if (auth.canManageExpenses)
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1E3A8A),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
-                          onPressed: () => _toggleGroupingMode(context, auth, society, isMr),
-                          child: Text(isMr ? 'पद्धत बदला' : 'Change Mode'),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFBFDBFE)),
                         ),
+                        child: InkWell(
+                          onTap: () => _showGroupingLockedInfo(context, isMr),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.lock, size: 13, color: Color(0xFF1E40AF)),
+                              const SizedBox(width: 4),
+                              Text(
+                                isMr ? 'कार्यकाळ संपेपर्यंत लॉक' : 'Locked for Term',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -425,54 +436,88 @@ class CommitteeDirectoryScreen extends StatelessWidget {
   void _showAppointSuperAdminDialog(BuildContext context, SocietyModel society, List<AppUser> members, bool isMr) {
     String? selectedUid = members.firstOrNull?.uid;
     int termMonths = society.superAdminTermMonths;
+    String selectedGrouping = 'keep';
 
     showDialog(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setState) => AlertDialog(
-          title: Text(isMr ? 'नवीन सुपर ॲडमिन (सचिव) नियुक्ती' : 'Appoint New Super Admin'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isMr
-                    ? 'सोसायटीतील सभासदांपैकी पुढील व्यक्तीला सुपर ॲडमिन पदावर नियुक्त करा:'
-                    : 'Select a member to appoint as the new Super Admin (Secretary):',
-                style: const TextStyle(fontSize: 12),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: selectedUid,
-                decoration: InputDecoration(
-                  labelText: isMr ? 'सभासद निवडा' : 'Select Member',
-                  border: const OutlineInputBorder(),
+          title: Text(isMr ? 'नवीन सुपर ॲडमिन (सचिव) नियुक्ती व हस्तांतरण' : 'Appoint New Super Admin & Handover'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isMr
+                      ? 'सोसायटीतील सभासदांपैकी पुढील व्यक्तीला सुपर ॲडमिन पदावर नियुक्त करा:'
+                      : 'Select a member to appoint as the new Super Admin (Secretary):',
+                  style: const TextStyle(fontSize: 12),
                 ),
-                items: members
-                    .map((m) => DropdownMenuItem(
-                          value: m.uid,
-                          child: Text('${isMr ? m.nameMr : m.name} (${m.flatNumber})', overflow: TextOverflow.ellipsis),
-                        ))
-                    .toList(),
-                onChanged: (val) => setState(() => selectedUid = val),
-              ),
-              const SizedBox(height: 14),
-              Text(isMr ? 'कार्यकाळ मुदत (Tenure)' : 'Tenure Term', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-              const SizedBox(height: 6),
-              DropdownButtonFormField<int>(
-                value: termMonths,
-                decoration: const InputDecoration(border: OutlineInputBorder()),
-                items: [
-                  DropdownMenuItem(value: 1, child: Text(isMr ? '१ महिना (1 Month)' : '1 Month')),
-                  DropdownMenuItem(value: 3, child: Text(isMr ? '३ महिने (3 Months)' : '3 Months')),
-                  DropdownMenuItem(value: 6, child: Text(isMr ? '६ महिने (6 Months)' : '6 Months')),
-                  DropdownMenuItem(value: 12, child: Text(isMr ? '१ वर्ष (12 Months)' : '1 Year')),
-                ],
-                onChanged: (val) {
-                  if (val != null) setState(() => termMonths = val);
-                },
-              ),
-            ],
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedUid,
+                  decoration: InputDecoration(
+                    labelText: isMr ? 'सभासद निवडा' : 'Select Member',
+                    border: const OutlineInputBorder(),
+                  ),
+                  items: members
+                      .map((m) => DropdownMenuItem(
+                            value: m.uid,
+                            child: Text('${isMr ? m.nameMr : m.name} (${m.flatNumber})', overflow: TextOverflow.ellipsis),
+                          ))
+                      .toList(),
+                  onChanged: (val) => setState(() => selectedUid = val),
+                ),
+                const SizedBox(height: 14),
+                Text(isMr ? 'कार्यकाळ मुदत (Tenure)' : 'Tenure Term', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<int>(
+                  value: termMonths,
+                  decoration: const InputDecoration(border: OutlineInputBorder()),
+                  items: [
+                    DropdownMenuItem(value: 1, child: Text(isMr ? '१ महिना (1 Month)' : '1 Month')),
+                    DropdownMenuItem(value: 3, child: Text(isMr ? '३ महिने (3 Months)' : '3 Months')),
+                    DropdownMenuItem(value: 6, child: Text(isMr ? '६ महिने (6 Months)' : '6 Months')),
+                    DropdownMenuItem(value: 12, child: Text(isMr ? '१ वर्ष (12 Months)' : '1 Year')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setState(() => termMonths = val);
+                  },
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  isMr ? 'व्यवस्थापन रचना बदल (हस्तांतरण वेळी ऐच्छिक)' : 'Grouping Mode (Optional on Handover)',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  value: selectedGrouping,
+                  decoration: const InputDecoration(border: OutlineInputBorder()),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'keep',
+                      child: Text(
+                        isMr
+                            ? 'चालू रचना कायम ठेवा (${society.isWingWise ? "🏢 विंग" : "🏬 मजला"})'
+                            : 'Keep Current (${society.isWingWise ? "Wing" : "Floor"})',
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'wing',
+                      child: Text(isMr ? '🏢 विंग पद्धतीत बदला (Wing-wise)' : '🏢 Switch to Wing-wise'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'floor',
+                      child: Text(isMr ? '🏬 मजला पद्धतीत बदला (Floor-wise)' : '🏬 Switch to Floor-wise'),
+                    ),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setState(() => selectedGrouping = val);
+                  },
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogCtx), child: Text(isMr ? 'रद्द' : 'Cancel')),
@@ -480,12 +525,41 @@ class CommitteeDirectoryScreen extends StatelessWidget {
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryNavy, foregroundColor: Colors.white),
               onPressed: () async {
                 if (selectedUid == null) return;
+
+                String? newGroupType;
+                if (selectedGrouping != 'keep' && selectedGrouping != society.groupingType) {
+                  // Check if society has pending dues
+                  final hasDues = await FirestoreService.instance.hasPendingSocietyDues(society.id);
+                  if (hasDues) {
+                    if (dialogCtx.mounted) {
+                      showDialog(
+                        context: dialogCtx,
+                        builder: (errCtx) => AlertDialog(
+                          title: Text(isMr ? '⚠️ थकबाकी शिल्लक आहे!' : 'Outstanding Dues!'),
+                          content: Text(
+                            isMr
+                                ? 'संस्थेतील सर्व मेंटेनन्स देयके (Dues) पूर्ण भरल्याशिवाय व्यवस्थापन रचना (विंग/मजला) बदलता येणार नाही.'
+                                : 'Cannot change grouping mode while outstanding dues remain.',
+                          ),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(errCtx), child: Text(isMr ? 'समजले' : 'OK')),
+                          ],
+                        ),
+                      );
+                    }
+                    return;
+                  }
+                  newGroupType = selectedGrouping;
+                }
+
                 await FirestoreService.instance.appointNewSuperAdmin(
                   societyId: society.id,
                   newSuperAdminUid: selectedUid!,
                   termMonths: termMonths,
                   appointedByUid: society.adminUid,
+                  newGroupingType: newGroupType,
                 );
+
                 if (dialogCtx.mounted) {
                   Navigator.pop(dialogCtx);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -497,6 +571,31 @@ class CommitteeDirectoryScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showGroupingLockedInfo(BuildContext context, bool isMr) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.lock, color: Color(0xFF1E3A8A)),
+            const SizedBox(width: 8),
+            Text(isMr ? 'व्यवस्थापन रचना लॉक आहे' : 'Grouping Locked'),
+          ],
+        ),
+        content: Text(
+          isMr
+              ? '📌 नियम: सुपर ॲडमिनच्या चालू कार्यकाळात ही पद्धत बदलता येत नाही. नवीन सुपर ॲडमिन नियुक्तीच्या वेळी (हस्तांतरण / Handover) आवश्यकता असल्यास ही पद्धत बदलता येईल.'
+              : '📌 Rule: Grouping structure is locked during the current Super Admin term. It can be changed during handover to a new Super Admin if needed.',
+          style: const TextStyle(fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isMr ? 'समजले' : 'OK')),
+        ],
       ),
     );
   }

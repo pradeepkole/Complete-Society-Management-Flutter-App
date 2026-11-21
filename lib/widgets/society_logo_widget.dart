@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 class SocietyLogoWidget extends StatelessWidget {
@@ -7,6 +8,9 @@ class SocietyLogoWidget extends StatelessWidget {
   final double size;
   final double borderRadius;
   final Color? backgroundColor;
+
+  // In-memory cache for ultra-fast permanent rendering without re-decoding
+  static final Map<String, Uint8List> _bytesCache = {};
 
   const SocietyLogoWidget({
     super.key,
@@ -21,12 +25,17 @@ class SocietyLogoWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     if (logoUrl != null && logoUrl!.trim().isNotEmpty) {
       final trimmed = logoUrl!.trim();
-      
+
       // Base64 Data URI or raw Base64 string
-      if (trimmed.startsWith('data:image') || (!trimmed.startsWith('http') && trimmed.length > 100)) {
+      if (trimmed.startsWith('data:image') || (!trimmed.startsWith('http') && trimmed.length > 80)) {
         try {
-          final cleanBase64 = trimmed.contains(',') ? trimmed.split(',').last : trimmed;
-          final bytes = base64Decode(cleanBase64);
+          Uint8List? bytes = _bytesCache[trimmed];
+          if (bytes == null) {
+            final cleanBase64 = (trimmed.contains(',') ? trimmed.split(',').last : trimmed)
+                .replaceAll(RegExp(r'\s+'), '');
+            bytes = base64Decode(cleanBase64);
+            _bytesCache[trimmed] = bytes;
+          }
           return ClipRRect(
             borderRadius: BorderRadius.circular(borderRadius),
             child: Image.memory(
@@ -34,6 +43,7 @@ class SocietyLogoWidget extends StatelessWidget {
               width: size,
               height: size,
               fit: BoxFit.cover,
+              gaplessPlayback: true,
               errorBuilder: (_, __, ___) => _buildFallback(),
             ),
           );
@@ -48,6 +58,7 @@ class SocietyLogoWidget extends StatelessWidget {
             width: size,
             height: size,
             fit: BoxFit.cover,
+            gaplessPlayback: true,
             errorBuilder: (_, __, ___) => _buildFallback(),
           ),
         );

@@ -437,6 +437,103 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// 1-Year PRO Renewal for Society (SoftAdmin)
+  Future<bool> renewSocietyProYear(String societyId) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final updated = await _firestoreService.renewSocietyProYear(societyId: societyId);
+      if (_currentSociety?.id == societyId) {
+        _currentSociety = updated;
+      }
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Toggle Society Subscription (Active / Disabled) by SoftAdmin
+  Future<bool> toggleSocietySubscription(String societyId, bool enable) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final updated = await _firestoreService.toggleSocietySubscription(societyId: societyId, enable: enable);
+      if (_currentSociety?.id == societyId) {
+        _currentSociety = updated;
+      }
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Adjust Subscription Days (+/- days) by SoftAdmin
+  Future<bool> adjustSocietySubscriptionDays(String societyId, int additionalDays) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final updated = await _firestoreService.adjustSocietySubscriptionDays(
+        societyId: societyId,
+        additionalDays: additionalDays,
+      );
+      if (_currentSociety?.id == societyId) {
+        _currentSociety = updated;
+      }
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Rotate Group Admin for a wing/floor
+  Future<bool> rotateGroupAdmin({
+    required String groupName,
+    required String newUid,
+    String? oldUid,
+    bool isMr = true,
+  }) async {
+    if (_currentSociety == null) return false;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _firestoreService.rotateGroupAdmin(
+        societyId: _currentSociety!.id,
+        groupName: groupName,
+        newUid: newUid,
+        oldUid: oldUid,
+        isMr: isMr,
+      );
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   /// Backup Sign-In via Registered Mobile Number (and SoftAdmin direct access)
   Future<bool> signInWithPhoneNumber(String phoneNumber) async {
     _isLoading = true;
