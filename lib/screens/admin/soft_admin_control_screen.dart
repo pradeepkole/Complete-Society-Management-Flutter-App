@@ -339,7 +339,7 @@ class _SoftAdminControlScreenState extends State<SoftAdminControlScreen> with Si
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
                 title: Text(
-                  'फ्लॅट ${bill.flatNumber} (विंग ${bill.wing}) - ${bill.residentName}',
+                  'फ्लॅट ${bill.flatNumber} (विंग ${bill.wing}) - ${bill.memberName}',
                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text(

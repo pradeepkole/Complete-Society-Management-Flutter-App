@@ -48,6 +48,7 @@ jobs:
 
       - name: Build Release APK
         run: |
+          set -o pipefail
           flutter build apk --release 2>&1 | tee build_log.txt
 
       - name: Upload Build Log Artifact
