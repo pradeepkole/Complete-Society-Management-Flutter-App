@@ -62,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 border: Border.all(color: const Color(0xFFCBD5E1)),
               ),
               child: const Text(
-                '76:4B:AD:25:DE:1F:B3:96:B6:30:25:3F:88:C1:E2:28:AF:30:6F:92',
+                'A3:9C:65:0D:2E:5E:FE:8A:FE:A2:8F:F4:4E:FC:F4:40:C9:85:E7:A8',
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'monospace', color: Color(0xFF1E293B)),
               ),
             ),
@@ -93,6 +93,103 @@ class _LoginScreenState extends State<LoginScreen> {
             label: Text(isMr ? 'थेट चाचणी सुरू करा' : 'Continue in Test Mode'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showMobileLoginDialog(AuthProvider auth, bool isMr) {
+    final phoneController = TextEditingController();
+    bool isSubmitting = false;
+    String? localError;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.phone_android, color: Color(0xFF1E3A8A)),
+              const SizedBox(width: 8),
+              Text(
+                isMr ? 'मोबाईल नंबर लॉगिन' : 'Mobile Number Login',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isMr
+                    ? 'आपल्या नोंदणीकृत १०-अंकी मोबाईल नंबरने लॉगिन करा:'
+                    : 'Enter your registered 10-digit mobile number:',
+                style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                maxLength: 10,
+                decoration: InputDecoration(
+                  prefixText: '+91 ',
+                  prefixStyle: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                  hintText: '98XXXXXXXX',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  counterText: '',
+                ),
+              ),
+              if (localError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  localError!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(isMr ? 'रद्द करा' : 'Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A)),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      final phone = phoneController.text.trim();
+                      if (phone.length < 10) {
+                        setDialogState(() {
+                          localError = isMr ? 'कृपया वैध १०-अंकी मोबाईल नंबर टाका.' : 'Please enter a valid 10-digit phone number.';
+                        });
+                        return;
+                      }
+
+                      setDialogState(() {
+                        isSubmitting = true;
+                        localError = null;
+                      });
+
+                      final success = await auth.signInWithPhoneNumber(phone);
+                      if (context.mounted) {
+                        if (success) {
+                          Navigator.pop(ctx);
+                        } else {
+                          setDialogState(() {
+                            isSubmitting = false;
+                            localError = auth.errorMessage ?? (isMr ? 'लॉगिन अयशस्वी झाले.' : 'Login failed.');
+                          });
+                        }
+                      }
+                    },
+              child: isSubmitting
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text(isMr ? 'लॉगिन करा' : 'Log In'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -297,6 +394,25 @@ class _LoginScreenState extends State<LoginScreen> {
                     ? 'सोसायटी नाव, पत्ता, विंग्स व लोगो अपलोडची थेट चाचणी घ्या'
                     : 'Test society creation, address, wings & logo upload live',
                 style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 12),
+
+              // MOBILE NUMBER BACKUP LOGIN BUTTON
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.phone_android, size: 18, color: Color(0xFF1E3A8A)),
+                  label: Text(
+                    isMr ? '📱 मोबाईल नंबरने लॉगिन करा' : '📱 Login with Mobile Number',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    side: const BorderSide(color: Color(0xFF1E3A8A), width: 1.5),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => _showMobileLoginDialog(auth, isMr),
+                ),
               ),
               const SizedBox(height: 28),
 

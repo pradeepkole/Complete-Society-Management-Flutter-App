@@ -4,6 +4,7 @@ import '../l10n/language_provider.dart';
 import '../providers/auth_provider.dart';
 import '../screens/admin/society_settings_screen.dart';
 import 'language_toggle_button.dart';
+import 'society_logo_widget.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? title;
@@ -39,25 +40,15 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: Row(
         children: [
           // Society Logo
-          if (society?.logoUrl != null && society!.logoUrl!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  society.logoUrl!,
-                  width: 38,
-                  height: 38,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _buildFallbackLogo(societyDisplayName),
-                ),
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: _buildFallbackLogo(societyDisplayName),
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: SocietyLogoWidget(
+              logoUrl: society?.logoUrl,
+              fallbackText: societyDisplayName,
+              size: 38,
+              borderRadius: 8,
             ),
+          ),
 
           // Titles
           Expanded(

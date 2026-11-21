@@ -396,18 +396,30 @@ class _BalanceSheetScreenState extends State<BalanceSheetScreen> {
 
   Color _getCategoryColor(String categoryKey) {
     switch (categoryKey) {
-      case 'cat_security_salary':
-        return const Color(0xFF1E3A8A);
       case 'cat_common_electricity':
         return const Color(0xFFEA580C);
+      case 'cat_water_bill':
       case 'cat_water_tanker':
         return const Color(0xFF0284C7);
-      case 'cat_lift_maintenance':
-        return const Color(0xFF7C3AED);
+      case 'cat_watchman_salary':
+      case 'cat_security_salary':
+        return const Color(0xFF1E3A8A);
+      case 'cat_sweeper_salary':
       case 'cat_housekeeping_cleaning':
         return const Color(0xFF059669);
-      default:
+      case 'cat_lift_maintenance':
+        return const Color(0xFF7C3AED);
+      case 'cat_misc_repair':
+      case 'cat_plumbing_repairs':
         return const Color(0xFFD97706);
+      case 'cat_labour_payment':
+        return const Color(0xFF475569);
+      case 'cat_goods_purchase':
+        return const Color(0xFF2563EB);
+      case 'cat_development_expenses':
+        return const Color(0xFFDC2626);
+      default:
+        return const Color(0xFF0D9488);
     }
   }
 }

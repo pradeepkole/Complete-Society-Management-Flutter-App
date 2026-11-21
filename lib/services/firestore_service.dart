@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -53,10 +54,19 @@ class FirestoreService {
 
     String? logoUrl;
     if (logoBytes != null && logoBytes.isNotEmpty) {
-      logoUrl = await _storage.uploadSocietyLogo(
-        societyId: societyId,
-        imageBytes: logoBytes,
-      );
+      // 1. Immediately create Base64 data string for 100% offline & instant display
+      logoUrl = 'data:image/jpeg;base64,${base64Encode(logoBytes)}';
+
+      // 2. Also attempt Firebase Storage in background if available
+      try {
+        final storageUrl = await _storage.uploadSocietyLogo(
+          societyId: societyId,
+          imageBytes: logoBytes,
+        );
+        if (storageUrl.isNotEmpty && storageUrl.startsWith('http') && !storageUrl.contains('alt=media')) {
+          logoUrl = storageUrl;
+        }
+      } catch (_) {}
     }
 
     final society = SocietyModel(
@@ -91,7 +101,7 @@ class FirestoreService {
     return society;
   }
 
-  /// Update society settings (Name, address, UPI ID, Bank, Logo)
+  /// Update society settings (Name, address, UPI ID, Bank, Logo, Mobile login toggle)
   Future<SocietyModel> updateSocietySettings({
     required SocietyModel currentSociety,
     String? name,
@@ -106,13 +116,23 @@ class FirestoreService {
     String? ifsc,
     double? defaultMaintenanceAmount,
     Uint8List? newLogoBytes,
+    bool? allowMobileLogin,
   }) async {
     String? logoUrl = currentSociety.logoUrl;
     if (newLogoBytes != null && newLogoBytes.isNotEmpty) {
-      logoUrl = await _storage.uploadSocietyLogo(
-        societyId: currentSociety.id,
-        imageBytes: newLogoBytes,
-      );
+      // 1. Immediately create Base64 data string for 100% offline & instant display
+      logoUrl = 'data:image/jpeg;base64,${base64Encode(newLogoBytes)}';
+
+      // 2. Also attempt Firebase Storage in background
+      try {
+        final storageUrl = await _storage.uploadSocietyLogo(
+          societyId: currentSociety.id,
+          imageBytes: newLogoBytes,
+        );
+        if (storageUrl.isNotEmpty && storageUrl.startsWith('http') && !storageUrl.contains('alt=media')) {
+          logoUrl = storageUrl;
+        }
+      } catch (_) {}
     }
 
     final updated = currentSociety.copyWith(
@@ -128,6 +148,7 @@ class FirestoreService {
       ifsc: ifsc,
       defaultMaintenanceAmount: defaultMaintenanceAmount,
       logoUrl: logoUrl,
+      allowMobileLogin: allowMobileLogin,
     );
 
     await societiesRef.doc(currentSociety.id).set(updated.toMap(), SetOptions(merge: true));
@@ -167,6 +188,26 @@ class FirestoreService {
     final doc = await usersRef.doc(uid).get();
     if (!doc.exists || doc.data() == null) return null;
     return AppUser.fromMap(doc.data()!, doc.id);
+  }
+
+  /// Finds a registered user by phone number for mobile login
+  Future<AppUser?> findUserByPhone(String phone) async {
+    final cleanPhone = phone.replaceAll(RegExp(r'\s+|-'), '').trim();
+    
+    // Check clean phone, +91 phone, or last 10 digits
+    final queries = [
+      cleanPhone,
+      '+91$cleanPhone',
+      cleanPhone.length >= 10 ? cleanPhone.substring(cleanPhone.length - 10) : cleanPhone,
+    ];
+
+    for (var p in queries) {
+      final snap = await usersRef.where('phoneNumber', isEqualTo: p).limit(1).get();
+      if (snap.docs.isNotEmpty) {
+        return AppUser.fromMap(snap.docs.first.data(), snap.docs.first.id);
+      }
+    }
+    return null;
   }
 
   /// Submits a request to join an existing society (awaits admin approval)

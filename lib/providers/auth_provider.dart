@@ -320,7 +320,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Update society settings (Name, address, UPI ID, Bank, Logo)
+  /// Update society settings (Name, address, UPI ID, Bank, Logo, Mobile login toggle)
   Future<bool> updateSocietySettings({
     String? name,
     String? nameMr,
@@ -334,6 +334,7 @@ class AuthProvider extends ChangeNotifier {
     String? ifsc,
     double? defaultMaintenanceAmount,
     Uint8List? newLogoBytes,
+    bool? allowMobileLogin,
   }) async {
     if (_currentSociety == null) return false;
 
@@ -356,6 +357,7 @@ class AuthProvider extends ChangeNotifier {
         ifsc: ifsc,
         defaultMaintenanceAmount: defaultMaintenanceAmount,
         newLogoBytes: newLogoBytes,
+        allowMobileLogin: allowMobileLogin,
       );
 
       _currentSociety = updated;
@@ -366,6 +368,44 @@ class AuthProvider extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Backup Sign-In via Registered Mobile Number
+  Future<bool> signInWithPhoneNumber(String phoneNumber) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final user = await _firestoreService.findUserByPhone(phoneNumber);
+      if (user == null) {
+        _errorMessage = 'हा मोबाईल नंबर नोंदणीकृत नाही. कृपया आधी सोसायटी कोड टाकून सामील व्हा.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      _currentUser = user;
+      if (user.societyId.isNotEmpty) {
+        _currentSociety = await _firestoreService.getSociety(user.societyId);
+        _firestoreService.activeSocietyId = user.societyId;
+      }
+
+      if (!user.isApproved) {
+        _status = AuthStatus.pendingApproval;
+      } else {
+        _status = AuthStatus.authenticated;
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'लॉगिन त्रुटी: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 

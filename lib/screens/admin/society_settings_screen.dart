@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../providers/auth_provider.dart';
 import '../../l10n/language_provider.dart';
 import '../../utils/app_theme.dart';
+import '../../widgets/society_logo_widget.dart';
 
 class SocietySettingsScreen extends StatefulWidget {
   const SocietySettingsScreen({super.key});
@@ -32,12 +34,14 @@ class _SocietySettingsScreenState extends State<SocietySettingsScreen> {
   Uint8List? _newLogoBytes;
   final ImagePicker _picker = ImagePicker();
   bool _isSaving = false;
+  bool _allowMobileLogin = false;
 
   @override
   void initState() {
     super.initState();
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final soc = auth.currentSociety;
+    _allowMobileLogin = soc?.allowMobileLogin ?? false;
 
     _nameEnController = TextEditingController(text: soc?.name ?? '');
     _nameMrController = TextEditingController(text: soc?.nameMr ?? '');
@@ -120,6 +124,7 @@ class _SocietySettingsScreenState extends State<SocietySettingsScreen> {
       ifsc: _ifscController.text.trim(),
       defaultMaintenanceAmount: double.tryParse(_maintenanceAmountController.text) ?? 2000,
       newLogoBytes: _newLogoBytes,
+      allowMobileLogin: _allowMobileLogin,
     );
 
     setState(() => _isSaving = false);
@@ -219,15 +224,18 @@ class _SocietySettingsScreenState extends State<SocietySettingsScreen> {
                               shape: BoxShape.circle,
                               color: const Color(0xFFEFF6FF),
                               border: Border.all(color: const Color(0xFF3B82F6), width: 2),
-                              image: _newLogoBytes != null
-                                  ? DecorationImage(image: MemoryImage(_newLogoBytes!), fit: BoxFit.cover)
-                                  : (society?.logoUrl != null && society!.logoUrl!.isNotEmpty
-                                      ? DecorationImage(image: NetworkImage(society.logoUrl!), fit: BoxFit.cover)
-                                      : null),
                             ),
-                            child: _newLogoBytes == null && (society?.logoUrl == null || society!.logoUrl!.isEmpty)
-                                ? const Icon(Icons.apartment_rounded, size: 44, color: Color(0xFF3B82F6))
-                                : null,
+                            child: ClipOval(
+                              child: _newLogoBytes != null
+                                  ? Image.memory(_newLogoBytes!, fit: BoxFit.cover)
+                                  : SocietyLogoWidget(
+                                      logoUrl: society?.logoUrl,
+                                      fallbackText: society?.name ?? 'S',
+                                      size: 88,
+                                      borderRadius: 44,
+                                      backgroundColor: const Color(0xFF3B82F6),
+                                    ),
+                            ),
                           ),
                           Positioned(
                             bottom: 0,
@@ -376,6 +384,31 @@ class _SocietySettingsScreenState extends State<SocietySettingsScreen> {
                 controller: _accountNoController,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+              ),
+              const SizedBox(height: 20),
+
+              // Mobile Number Login Toggle (Admin Controlled)
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: SwitchListTile(
+                  title: Text(
+                    isMr ? 'मोबाईल नंबर बॅकअप लॉगिन' : 'Allow Mobile Number Login',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  subtitle: Text(
+                    isMr
+                        ? 'चालू केल्यास सभासद मोबाईल नंबरनेही लॉगिन करू शकतील (बाय-डिफॉल्ट बंद)'
+                        : 'Allow members to log in using their phone number as a backup',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                  ),
+                  activeColor: AppTheme.primaryNavy,
+                  value: _allowMobileLogin,
+                  onChanged: (val) => setState(() => _allowMobileLogin = val),
+                ),
               ),
               const SizedBox(height: 28),
 

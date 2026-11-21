@@ -17,6 +17,7 @@ class SocietyModel {
   final double defaultMaintenanceAmount;
   final int totalFlats;
   final String adminUid;
+  final bool allowMobileLogin;
   final DateTime? createdAt;
 
   SocietyModel({
@@ -38,6 +39,7 @@ class SocietyModel {
     this.defaultMaintenanceAmount = 2000,
     this.totalFlats = 40,
     this.adminUid = '',
+    this.allowMobileLogin = false,
     this.createdAt,
   });
 
@@ -64,6 +66,7 @@ class SocietyModel {
       defaultMaintenanceAmount: (data['defaultMaintenanceAmount'] as num?)?.toDouble() ?? 2000,
       totalFlats: (data['totalFlats'] as num?)?.toInt() ?? 40,
       adminUid: data['adminUid'] ?? '',
+      allowMobileLogin: data['allowMobileLogin'] ?? false,
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] is int
               ? DateTime.fromMillisecondsSinceEpoch(data['createdAt'])
@@ -91,6 +94,7 @@ class SocietyModel {
       'defaultMaintenanceAmount': defaultMaintenanceAmount,
       'totalFlats': totalFlats,
       'adminUid': adminUid,
+      'allowMobileLogin': allowMobileLogin,
       'createdAt': (createdAt ?? DateTime.now()).millisecondsSinceEpoch,
     };
   }
@@ -113,6 +117,7 @@ class SocietyModel {
     double? defaultMaintenanceAmount,
     int? totalFlats,
     String? adminUid,
+    bool? allowMobileLogin,
   }) {
     return SocietyModel(
       id: id,
@@ -133,6 +138,7 @@ class SocietyModel {
       defaultMaintenanceAmount: defaultMaintenanceAmount ?? this.defaultMaintenanceAmount,
       totalFlats: totalFlats ?? this.totalFlats,
       adminUid: adminUid ?? this.adminUid,
+      allowMobileLogin: allowMobileLogin ?? this.allowMobileLogin,
       createdAt: createdAt,
     );
   }
