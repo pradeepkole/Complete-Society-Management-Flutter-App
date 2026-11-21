@@ -696,6 +696,37 @@ class FirestoreService {
     return updated;
   }
 
+  /// Set exact remaining days for society subscription directly from today
+  /// (Does not add to previous days; sets exactly X days from now)
+  Future<SocietyModel> setExactSubscriptionDays({
+    required String societyId,
+    required int exactDays,
+  }) async {
+    final society = await getSociety(societyId);
+    if (society == null) throw Exception('Society not found');
+
+    final now = DateTime.now();
+    final newEndDate = now.add(Duration(days: exactDays));
+    final newPlan = exactDays >= 365 ? 'pro' : society.subscriptionPlan;
+
+    final updated = society.copyWith(
+      subscriptionPlan: newPlan,
+      subscriptionStatus: 'active',
+      subscriptionStartDate: society.subscriptionStartDate ?? now,
+      subscriptionEndDate: newEndDate,
+      subscriptionDaysAdded: exactDays,
+    );
+
+    await societiesRef.doc(societyId).update({
+      'subscriptionPlan': newPlan,
+      'subscriptionStatus': 'active',
+      'subscriptionEndDate': newEndDate.toIso8601String(),
+      'subscriptionDaysAdded': exactDays,
+    });
+
+    return updated;
+  }
+
   /// Toggle subscription status: 'active' or 'disabled' (OFF) by SoftAdmin
   Future<SocietyModel> toggleSocietySubscription({
     required String societyId,

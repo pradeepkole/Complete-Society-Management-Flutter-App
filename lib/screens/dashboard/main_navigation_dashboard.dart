@@ -71,10 +71,10 @@ class _MainNavigationDashboardState extends State<MainNavigationDashboard> {
         _showBlockingExitDialog(
           context: context,
           isMr: isMr,
-          title: isMr ? '🚫 संपर्क करा: ॲडमिन' : '🚫 Contact Admin',
+          title: isMr ? '📞 संपर्क करा: ॲडमिन' : '📞 Contact Admin',
           message: isMr
-              ? 'आपल्या संस्थेचे ॲप सबस्क्रिप्शन प्रशासकाकडून बंद (Disabled) करण्यात आले आहे. कृपया चालू करण्यासाठी ॲडमिनशी संपर्क साधा.\n\n📞 संपर्क: 9822681814'
-              : 'App subscription has been disabled by admin. Please contact admin to activate.\n\n📞 Contact: 9822681814',
+              ? 'कृपया ॲडमिनशी संपर्क साधा.\n\n📞 अधिकृत संपर्क: 9822681814'
+              : 'Please contact admin.\n\n📞 Contact: 9822681814',
         );
         return;
       }

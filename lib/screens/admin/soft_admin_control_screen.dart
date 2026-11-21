@@ -22,16 +22,19 @@ class _SoftAdminControlScreenState extends State<SoftAdminControlScreen> with Si
   late TabController _tabController;
   final FirestoreService _firestore = FirestoreService.instance;
   bool _isResetting = false;
+  final TextEditingController _activeDaysController = TextEditingController();
+  int _societiesReloadTrigger = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _activeDaysController.dispose();
     super.dispose();
   }
 
@@ -260,6 +263,62 @@ class _SoftAdminControlScreenState extends State<SoftAdminControlScreen> with Si
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 12),
+                              Text(
+                                isMr ? 'शिल्लक दिवस थेट सेट करा (मागील दिवस न मोजता):' : 'Set Exact Remaining Days (Direct):',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF166534)),
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: SizedBox(
+                                      height: 38,
+                                      child: TextFormField(
+                                        controller: _activeDaysController,
+                                        keyboardType: TextInputType.number,
+                                        decoration: InputDecoration(
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                          hintText: isMr ? 'उदा. 365, 45, 60' : 'e.g. 365, 45, 60',
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                          suffixText: isMr ? 'दिवस' : 'days',
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF15803D),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    ),
+                                    icon: const Icon(Icons.check, size: 16),
+                                    label: Text(isMr ? 'लागू करा' : 'Apply'),
+                                    onPressed: () async {
+                                      final days = int.tryParse(_activeDaysController.text.trim());
+                                      if (days == null || days < 0) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text(isMr ? 'कृपया योग्य दिवस टाका (० किंवा अधिक)' : 'Enter valid days (0 or more)')),
+                                        );
+                                        return;
+                                      }
+                                      final ok = await auth.setExactSubscriptionDays(currentSoc.id, days);
+                                      if (context.mounted && ok) {
+                                        setState(() => _societiesReloadTrigger++);
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            backgroundColor: Colors.green,
+                                            content: Text(isMr ? 'सबस्क्रिप्शन अचूक $days दिवस सेट झाले!' : 'Subscription set to $days days!'),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -322,10 +381,13 @@ class _SoftAdminControlScreenState extends State<SoftAdminControlScreen> with Si
                         // Tab Bar
                         TabBar(
                           controller: _tabController,
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.start,
                           labelColor: AppTheme.primaryNavy,
                           unselectedLabelColor: Colors.grey,
                           indicatorColor: AppTheme.primaryNavy,
                           tabs: [
+                            Tab(icon: const Icon(Icons.domain, size: 18), text: isMr ? 'सर्व संस्था परवाने' : 'All Societies'),
                             Tab(icon: const Icon(Icons.account_balance_wallet, size: 18), text: isMr ? 'लेजर व्यवहार' : 'Ledger Entries'),
                             Tab(icon: const Icon(Icons.receipt_long, size: 18), text: isMr ? 'सर्व बिले' : 'Bills'),
                             Tab(icon: const Icon(Icons.campaign, size: 18), text: isMr ? 'सूचना फलक' : 'Notices'),
@@ -339,12 +401,297 @@ class _SoftAdminControlScreenState extends State<SoftAdminControlScreen> with Si
               body: TabBarView(
                 controller: _tabController,
                 children: [
+                  _buildAllSocietiesTab(auth, isMr),
                   _buildLedgerTab(currentSoc.id, isMr),
                   _buildBillsTab(currentSoc.id, isMr),
                   _buildNoticesTab(currentSoc.id, isMr),
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildAllSocietiesTab(AuthProvider auth, bool isMr) {
+    return FutureBuilder<List<SocietyModel>>(
+      key: ValueKey(_societiesReloadTrigger),
+      future: _firestore.getAllSocieties(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final societies = snapshot.data ?? [];
+        if (societies.isEmpty) {
+          return Center(
+            child: Text(
+              isMr ? 'कोणतीही संस्था नोंदणीकृत नाही.' : 'No societies found.',
+              style: const TextStyle(color: Colors.grey),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: societies.length,
+          itemBuilder: (context, index) {
+            final soc = societies[index];
+            return _buildSocietySubscriptionCard(soc, auth, isMr);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSocietySubscriptionCard(SocietyModel soc, AuthProvider auth, bool isMr) {
+    final isSelected = soc.id == auth.currentSociety?.id;
+    final daysCtrl = TextEditingController(text: '${soc.remainingSubscriptionDays}');
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isSelected ? const Color(0xFF1E3A8A) : Colors.grey.shade300,
+          width: isSelected ? 1.5 : 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header Row
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: isSelected ? const Color(0xFF1E3A8A) : Colors.grey.shade200,
+                  child: Icon(Icons.apartment, color: isSelected ? Colors.white : Colors.black87),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isMr ? soc.nameMr : soc.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      Text(
+                        'कोड: ${soc.societyCode} • ${soc.city} • ${soc.totalFlats} फ्लॅट्स',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: soc.isSubscriptionDisabled
+                        ? Colors.red.shade700
+                        : (soc.isPro ? const Color(0xFFD97706) : const Color(0xFF0284C7)),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    soc.isSubscriptionDisabled
+                        ? (isMr ? '🔴 बंद (OFF)' : 'OFF')
+                        : (soc.isPro ? '⭐ PRO' : '⚡ DEMO'),
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 18),
+
+            // Subscription Dates & Shillak Days Display
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isMr ? 'खरेदी / सुरू तारीख:' : 'Start / Purchase Date:',
+                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                      ),
+                      Text(
+                        AppDateFormatter.formatDate(soc.subscriptionStartDate ?? soc.createdAt ?? DateTime.now(), isMarathi: isMr),
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isMr ? 'वैधता समाप्ती तारीख:' : 'Validity Expiry Date:',
+                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                      ),
+                      Text(
+                        AppDateFormatter.formatDate(soc.effectiveExpiryDate, isMarathi: isMr),
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isMr ? 'शिल्लक कालावधी:' : 'Remaining Days:',
+                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                      ),
+                      Text(
+                        isMr ? '${soc.remainingSubscriptionDays} दिवस शिल्लक' : '${soc.remainingSubscriptionDays} days left',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: soc.remainingSubscriptionDays <= 15 ? Colors.red.shade700 : const Color(0xFF15803D),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // User's Requested Textbox for Exact Remaining Days
+            Text(
+              isMr ? 'शिल्लक दिवस थेट सेट करा (मागील दिवस न मोजता):' : 'Set Exact Remaining Days (Direct):',
+              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 38,
+                    child: TextFormField(
+                      controller: daysCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        hintText: isMr ? 'उदा. 365, 45, 60' : 'e.g. 365, 45, 60',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        suffixText: isMr ? 'दिवस' : 'days',
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E3A8A),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  ),
+                  icon: const Icon(Icons.check, size: 16),
+                  label: Text(isMr ? 'लागू करा' : 'Set'),
+                  onPressed: () async {
+                    final parsedDays = int.tryParse(daysCtrl.text.trim());
+                    if (parsedDays == null || parsedDays < 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(isMr ? 'कृपया योग्य दिवस टाका (० किंवा अधिक)' : 'Enter valid days (0 or more)')),
+                      );
+                      return;
+                    }
+                    final ok = await auth.setExactSubscriptionDays(soc.id, parsedDays);
+                    if (context.mounted && ok) {
+                      setState(() => _societiesReloadTrigger++);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: Colors.green,
+                          content: Text(isMr ? '${soc.nameMr} चे सबस्क्रिप्शन अचूक $parsedDays दिवस सेट झाले!' : 'Subscription set to exactly $parsedDays days!'),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Action Shortcuts
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    foregroundColor: const Color(0xFF15803D),
+                    side: const BorderSide(color: Color(0xFF15803D)),
+                    textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                  icon: const Icon(Icons.add_task, size: 14),
+                  label: Text(isMr ? '⭐ +१ वर्ष Pro' : '⭐ +1 Year Pro'),
+                  onPressed: () async {
+                    final ok = await auth.renewSocietyProYear(soc.id);
+                    if (context.mounted && ok) {
+                      setState(() => _societiesReloadTrigger++);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: Colors.green,
+                          content: Text(isMr ? '${soc.nameMr} ला +१ वर्ष Pro सबस्क्रिप्शन जोडले!' : '+1 Year Pro added!'),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    foregroundColor: soc.isSubscriptionDisabled ? Colors.green.shade800 : Colors.red.shade800,
+                    side: BorderSide(color: soc.isSubscriptionDisabled ? Colors.green : Colors.red),
+                    textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                  icon: Icon(soc.isSubscriptionDisabled ? Icons.check_circle_outline : Icons.power_settings_new, size: 14),
+                  label: Text(soc.isSubscriptionDisabled ? (isMr ? 'चालू करा (ON)' : 'Enable') : (isMr ? 'बंद करा (OFF)' : 'Disable')),
+                  onPressed: () async {
+                    final enable = soc.isSubscriptionDisabled;
+                    final ok = await auth.toggleSocietySubscription(soc.id, enable);
+                    if (context.mounted && ok) {
+                      setState(() => _societiesReloadTrigger++);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: enable ? Colors.green : Colors.red,
+                          content: Text(enable ? (isMr ? 'सबस्क्रिप्शन चालू केले!' : 'Enabled!') : (isMr ? 'सबस्क्रिप्शन बंद केले (OFF)!' : 'Disabled!')),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                if (!isSelected)
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      foregroundColor: const Color(0xFF1E3A8A),
+                      side: const BorderSide(color: Color(0xFF1E3A8A)),
+                      textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                    icon: const Icon(Icons.swap_horiz, size: 14),
+                    label: Text(isMr ? 'व्यवस्थापनासाठी निवडा' : 'Select'),
+                    onPressed: () {
+                      auth.switchSocietyForSoftAdmin(soc);
+                      setState(() {});
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(isMr ? '${soc.nameMr} सक्रिय झाली!' : '${soc.name} activated!')),
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -639,12 +986,35 @@ class _SoftAdminControlScreenState extends State<SoftAdminControlScreen> with Si
                               ),
                             ],
                           ),
-                          subtitle: Text('कोड: ${soc.societyCode} • ${soc.city} • मुदत: ${AppDateFormatter.formatDate(soc.effectiveExpiryDate, isMarathi: isMr)}'),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('कोड: ${soc.societyCode} • ${soc.city} • ${soc.totalFlats} फ्लॅट्स'),
+                              const SizedBox(height: 2),
+                              Text(
+                                'खरेदी: ${AppDateFormatter.formatDate(soc.subscriptionStartDate ?? soc.createdAt ?? DateTime.now(), isMarathi: isMr)} • मुदत: ${AppDateFormatter.formatDate(soc.effectiveExpiryDate, isMarathi: isMr)}',
+                                style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                              ),
+                              Text(
+                                'शिल्लक दिवस: ${soc.remainingSubscriptionDays} दिवस',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: soc.remainingSubscriptionDays <= 15 ? Colors.red : const Color(0xFF15803D),
+                                ),
+                              ),
+                            ],
+                          ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.add_task, color: Color(0xFF15803D), size: 20),
+                                icon: const Icon(Icons.edit_calendar, color: Color(0xFF1E3A8A), size: 18),
+                                tooltip: isMr ? 'थेट दिवस सेट करा' : 'Set Exact Days',
+                                onPressed: () => _showDirectDaysDialog(context, soc, auth, isMr),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.add_task, color: Color(0xFF15803D), size: 18),
                                 tooltip: isMr ? '+१ वर्ष Pro रिन्यू करा' : '+1 Year Pro Renew',
                                 onPressed: () async {
                                   await auth.renewSocietyProYear(soc.id);
@@ -742,6 +1112,65 @@ class _SoftAdminControlScreenState extends State<SoftAdminControlScreen> with Si
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showDirectDaysDialog(BuildContext context, SocietyModel soc, AuthProvider auth, bool isMr) {
+    final ctrl = TextEditingController(text: '${soc.remainingSubscriptionDays}');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isMr ? '${soc.nameMr} - थेट दिवस सेट करा' : 'Set Exact Days for ${soc.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isMr
+                  ? 'चालू मुदत: ${AppDateFormatter.formatDate(soc.effectiveExpiryDate, isMarathi: isMr)} (${soc.remainingSubscriptionDays} दिवस बाकी)'
+                  : 'Current: ${AppDateFormatter.formatDate(soc.effectiveExpiryDate, isMarathi: isMr)} (${soc.remainingSubscriptionDays} days left)',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              isMr ? 'नवीन शिल्लक दिवस (मागील दिवस न मोजता थेट):' : 'Direct remaining days (without previous calculation):',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+            const SizedBox(height: 6),
+            TextFormField(
+              controller: ctrl,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: isMr ? 'उदा. 365, 45, 60' : 'e.g. 365, 45, 60',
+                suffixText: isMr ? 'दिवस' : 'days',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isMr ? 'रद्द' : 'Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A), foregroundColor: Colors.white),
+            onPressed: () async {
+              final d = int.tryParse(ctrl.text.trim());
+              if (d == null || d < 0) return;
+              Navigator.pop(ctx);
+              final ok = await auth.setExactSubscriptionDays(soc.id, d);
+              if (context.mounted && ok) {
+                setState(() => _societiesReloadTrigger++);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: Colors.green,
+                    content: Text(isMr ? '${soc.nameMr} चे सबस्क्रिप्शन अचूक $d दिवस सेट झाले!' : 'Subscription set to $d days!'),
+                  ),
+                );
+              }
+            },
+            child: Text(isMr ? 'लागू करा' : 'Apply'),
+          ),
+        ],
       ),
     );
   }

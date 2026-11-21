@@ -458,6 +458,30 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Set exact remaining days for society subscription directly from today (SoftAdmin)
+  Future<bool> setExactSubscriptionDays(String societyId, int exactDays) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final updated = await _firestoreService.setExactSubscriptionDays(
+        societyId: societyId,
+        exactDays: exactDays,
+      );
+      if (_currentSociety?.id == societyId) {
+        _currentSociety = updated;
+      }
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   /// Toggle Society Subscription (Active / Disabled) by SoftAdmin
   Future<bool> toggleSocietySubscription(String societyId, bool enable) async {
     _isLoading = true;
