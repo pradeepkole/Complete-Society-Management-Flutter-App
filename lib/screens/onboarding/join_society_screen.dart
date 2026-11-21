@@ -222,8 +222,9 @@ class _JoinSocietyScreenState extends State<JoinSocietyScreen> {
                               return DropdownMenuItem(value: w, child: Text('Wing $w'));
                             }).toList(),
                             onChanged: (val) => setState(() => _selectedWing = val ?? 'A'),
-                            decoration: OutlineInputBorder(borderRadius: BorderRadius.circular(10)).copyWith(
+                            decoration: InputDecoration(
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                             ),
                           ),
                         ],

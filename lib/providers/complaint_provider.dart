@@ -36,7 +36,7 @@ class ComplaintProvider extends ChangeNotifier {
   }
 
   Future<void> raiseComplaint({
-    required String societyId,
+    String? societyId,
     required String flatNumber,
     required String memberUid,
     required String memberName,
@@ -46,9 +46,10 @@ class ComplaintProvider extends ChangeNotifier {
     String photoUrl = '',
     String priority = 'medium',
   }) async {
+    final targetSocietyId = societyId ?? _societyId ?? '';
     final complaint = ComplaintModel(
       id: 'CMP-${DateTime.now().millisecondsSinceEpoch}',
-      societyId: societyId,
+      societyId: targetSocietyId,
       flatNumber: flatNumber,
       memberUid: memberUid,
       memberName: memberName,

@@ -32,7 +32,7 @@ class NoticeProvider extends ChangeNotifier {
   List<NoticeModel> get notices => _notices;
 
   Future<void> postNotice({
-    required String societyId,
+    String? societyId,
     required String title,
     required String titleMr,
     required String content,
@@ -42,9 +42,10 @@ class NoticeProvider extends ChangeNotifier {
     required String issuedByName,
     String attachmentUrl = '',
   }) async {
+    final targetSocietyId = societyId ?? _societyId ?? '';
     final notice = NoticeModel(
       id: 'NOT-${DateTime.now().millisecondsSinceEpoch}',
-      societyId: societyId,
+      societyId: targetSocietyId,
       title: title,
       titleMr: titleMr,
       content: content,

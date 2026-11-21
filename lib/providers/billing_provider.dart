@@ -189,4 +189,39 @@ class BillingProvider extends ChangeNotifier {
       societyUpiId: societyUpiId,
     );
   }
+
+  String getDynamicUpiQrPayload(
+    MaintenanceBill bill, {
+    String? upiId,
+    String? merchantName,
+  }) {
+    return UpiPaymentService.generateUpiUri(
+      upiId: upiId ?? 'society@oksbi',
+      merchantName: merchantName ?? 'Society Maintenance',
+      amount: bill.totalAmount,
+      billId: bill.id,
+      flatNumber: bill.flatNumber,
+      monthYear: '${bill.billMonth}/${bill.billYear}',
+    );
+  }
+
+  Future<void> downloadReceiptPdf(
+    MaintenanceBill bill, {
+    String? societyName,
+    String? societyAddress,
+    String? upiId,
+  }) async {
+    final pdfBytes = await PdfReceiptService.generateMaintenanceReceiptPdf(
+      bill: bill,
+      societyNameEn: societyName ?? 'Housing Society',
+      societyNameMr: 'गृहनिर्माण संस्था',
+      registrationNo: 'REG-${_societyId ?? "MUMBAI"}',
+      societyAddress: societyAddress ?? 'Maharashtra, India',
+      societyUpiId: upiId ?? 'society@oksbi',
+    );
+    await PdfReceiptService.printOrShareReceipt(
+      pdfBytes,
+      'Receipt_${bill.flatNumber}_${bill.billMonth}_${bill.billYear}.pdf',
+    );
+  }
 }

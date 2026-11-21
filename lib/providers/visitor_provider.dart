@@ -40,30 +40,30 @@ class VisitorProvider extends ChangeNotifier {
   }
 
   Future<void> checkInVisitor({
-    required String societyId,
+    String? societyId,
     required String visitorName,
     required String phoneNumber,
     required String targetWing,
     required String targetFlat,
     required String purpose,
-    required String visitorType,
-    required String vehicleNumber,
-    required String recordedByGuardUid,
+    String vehicleNumber = '',
+    String guardName = 'Security Guard',
+    String? visitorType,
+    String? recordedByGuardUid,
   }) async {
     final visitor = VisitorModel(
       id: 'VIS-${DateTime.now().millisecondsSinceEpoch}',
-      societyId: societyId,
+      societyId: societyId ?? _societyId ?? '',
       visitorName: visitorName,
       phoneNumber: phoneNumber,
       targetWing: targetWing,
       targetFlat: targetFlat,
       purpose: purpose,
-      visitorType: visitorType,
       vehicleNumber: vehicleNumber,
+      guardName: guardName,
       checkInTime: DateTime.now(),
       status: 'inside',
-      memberApproval: 'pending',
-      recordedByGuardUid: recordedByGuardUid,
+      memberApproval: 'pendingApproval',
     );
 
     await _firestoreService.checkInVisitor(visitor);
@@ -71,6 +71,10 @@ class VisitorProvider extends ChangeNotifier {
 
   Future<void> checkOutVisitor(String visitorId) async {
     await _firestoreService.checkOutVisitor(visitorId);
+  }
+
+  Future<void> setApproval(String visitorId, String approvalStatus) async {
+    await _firestoreService.updateVisitorApproval(visitorId, approvalStatus);
   }
 
   Future<void> updateApproval(String visitorId, String approvalStatus) async {

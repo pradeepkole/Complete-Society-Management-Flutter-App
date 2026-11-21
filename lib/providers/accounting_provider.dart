@@ -58,14 +58,73 @@ class AccountingProvider extends ChangeNotifier {
   }
 
   Future<void> addLedgerEntry({
-    required LedgerEntry entry,
+    LedgerEntry? entry,
+    String? type,
+    String? category,
+    String? title,
+    String? titleMr,
+    double? amount,
+    String? paymentMode,
+    String? voucherNo,
+    String? vendorName,
+    String? billAttachmentUrl,
+    String? recordedByUid,
+    String? notes,
     Uint8List? documentBytes,
     String documentExtension = 'jpg',
   }) async {
+    final finalEntry = entry ??
+        LedgerEntry(
+          id: '',
+          societyId: _societyId ?? '',
+          transactionDate: DateTime.now(),
+          type: type ?? 'expense',
+          category: category ?? 'General',
+          title: title ?? '',
+          titleMr: titleMr ?? title ?? '',
+          amount: amount ?? 0.0,
+          paymentMode: paymentMode ?? 'cash',
+          voucherNo: voucherNo ?? 'VCH-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+          vendorName: vendorName ?? '',
+          billAttachmentUrl: billAttachmentUrl ?? '',
+          recordedByUid: recordedByUid ?? 'admin',
+          notes: notes ?? '',
+        );
+
     await _firestoreService.recordLedgerEntry(
-      entry: entry,
+      entry: finalEntry,
       documentBytes: documentBytes,
       documentExtension: documentExtension,
+    );
+  }
+
+  Future<Uint8List> exportAuditPdf({
+    String? societyName,
+    String? registrationNo,
+    int? year,
+  }) async {
+    return await AuditExportService.generateAuditPdf(
+      societyNameEn: societyName ?? 'Housing Society',
+      registrationNo: registrationNo ?? 'REG-${_societyId ?? "MUMBAI"}',
+      entries: _ledger,
+      totalIncome: totalIncome,
+      totalExpenses: totalExpenses,
+      netBalance: netSocietyBalance,
+      bankBalance: bankBalance,
+      cashBalance: cashBalance,
+      year: year ?? DateTime.now().year,
+    );
+  }
+
+  String exportFinancialCsv({String? societyName}) {
+    return AuditExportService.generateFinancialCsv(
+      societyName: societyName ?? 'Housing Society',
+      entries: _ledger,
+      totalIncome: totalIncome,
+      totalExpenses: totalExpenses,
+      netBalance: netSocietyBalance,
+      bankBalance: bankBalance,
+      cashBalance: cashBalance,
     );
   }
 
@@ -76,17 +135,28 @@ class AccountingProvider extends ChangeNotifier {
     required String societyAddress,
     required int financialYear,
   }) async {
-    return await AuditExportService.generateAgmAuditPdf(
+    return await AuditExportService.generateAuditPdf(
       entries: _ledger,
       societyNameEn: societyNameEn,
-      societyNameMr: societyNameMr,
       registrationNo: registrationNo,
-      societyAddress: societyAddress,
-      financialYear: financialYear,
+      totalIncome: totalIncome,
+      totalExpenses: totalExpenses,
+      netBalance: netSocietyBalance,
+      bankBalance: bankBalance,
+      cashBalance: cashBalance,
+      year: financialYear,
     );
   }
 
-  String generateAuditCsv() {
-    return AuditExportService.generateAuditCsv(_ledger);
+  String generateAuditCsv({String? societyName}) {
+    return AuditExportService.generateFinancialCsv(
+      societyName: societyName ?? 'Housing Society',
+      entries: _ledger,
+      totalIncome: totalIncome,
+      totalExpenses: totalExpenses,
+      netBalance: netSocietyBalance,
+      bankBalance: bankBalance,
+      cashBalance: cashBalance,
+    );
   }
 }
