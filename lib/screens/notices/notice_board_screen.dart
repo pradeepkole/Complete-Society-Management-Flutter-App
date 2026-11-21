@@ -49,8 +49,17 @@ class NoticeBoardScreen extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               itemCount: notices.length,
               itemBuilder: (context, index) {
-                final notice = notices[index];
-                return _buildNoticeCard(context, notice, lang);
+                try {
+                  final notice = notices[index];
+                  return _buildNoticeCard(context, notice, lang);
+                } catch (e) {
+                  return Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text('सूचना लोड करताना त्रुटी: $e', style: const TextStyle(color: Colors.red)),
+                    ),
+                  );
+                }
               },
             ),
     );

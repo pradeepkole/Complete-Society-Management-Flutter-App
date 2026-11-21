@@ -39,7 +39,7 @@ class CommitteeDirectoryScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final members = snapshot.data ?? [];
+          final members = (snapshot.data ?? []).where((m) => !m.isSoftAdmin).toList();
           final chairman = members.where((m) => m.isChairman).firstOrNull;
           final superAdmin = members.where((m) => m.isSuperAdmin).firstOrNull;
           final groupAdmins = members.where((m) => m.isGroupAdmin).toList();

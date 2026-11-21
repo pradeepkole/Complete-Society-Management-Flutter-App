@@ -271,13 +271,16 @@ class FirestoreService {
     await usersRef.doc(uid).delete();
   }
 
-  /// Stream all approved members of a society
+  /// Stream all approved members of a society (SoftAdmin is completely hidden)
   Stream<List<AppUser>> streamSocietyMembers(String societyId) {
     return usersRef
         .where('societyId', isEqualTo: societyId)
         .where('isApproved', isEqualTo: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((d) => AppUser.fromMap(d.data(), d.id)).toList());
+        .map((snapshot) => snapshot.docs
+            .map((d) => AppUser.fromMap(d.data(), d.id))
+            .where((u) => !u.isSoftAdmin)
+            .toList());
   }
 
   // =======================================================
@@ -685,5 +688,64 @@ class FirestoreService {
     await visitorsRef.doc(visitorId).update({
       'memberApproval': approvalStatus,
     });
+  }
+
+  // =======================================================
+  // MODULE: SOFTADMIN MASTER CONTROLS (UNDOCUMENTED / HIDDEN)
+  // =======================================================
+
+  /// Fetch all registered societies for SoftAdmin switching
+  Future<List<SocietyModel>> getAllSocieties() async {
+    try {
+      final snap = await societiesRef.get();
+      return snap.docs.map((d) => SocietyModel.fromMap(d.data(), d.id)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Permanently hard-delete a single ledger entry (+ve or -ve contra)
+  Future<void> softAdminHardDeleteLedgerEntry(String entryId) async {
+    await ledgerRef.doc(entryId).delete();
+  }
+
+  /// SoftAdmin edit/modify ledger entry fields (amount, type, notes, etc.)
+  Future<void> softAdminUpdateLedgerEntry({
+    required String entryId,
+    required Map<String, dynamic> data,
+  }) async {
+    await ledgerRef.doc(entryId).update(data);
+  }
+
+  /// Permanently delete a maintenance bill
+  Future<void> softAdminHardDeleteBill(String billId) async {
+    await billsRef.doc(billId).delete();
+  }
+
+  /// Permanently delete a collection handover
+  Future<void> softAdminHardDeleteHandover(String handoverId) async {
+    await handoversRef.doc(handoverId).delete();
+  }
+
+  /// Master Action: Blank / Wipe all transaction data for a society
+  /// (Clears all ledger entries, member bills, and collection handovers)
+  Future<void> softAdminBlankAllTransactions(String societyId) async {
+    // 1. Delete all ledger entries
+    final ledgerSnap = await ledgerRef.where('societyId', isEqualTo: societyId).get();
+    for (var doc in ledgerSnap.docs) {
+      await doc.reference.delete();
+    }
+
+    // 2. Delete all maintenance bills
+    final billsSnap = await billsRef.where('societyId', isEqualTo: societyId).get();
+    for (var doc in billsSnap.docs) {
+      await doc.reference.delete();
+    }
+
+    // 3. Delete all collection handovers
+    final handoversSnap = await handoversRef.where('societyId', isEqualTo: societyId).get();
+    for (var doc in handoversSnap.docs) {
+      await doc.reference.delete();
+    }
   }
 }

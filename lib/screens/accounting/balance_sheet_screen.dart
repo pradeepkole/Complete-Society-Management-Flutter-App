@@ -9,6 +9,7 @@ import '../../utils/app_theme.dart';
 import '../../utils/date_formatter.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/summary_card.dart';
+import '../../services/firestore_service.dart';
 import 'add_ledger_entry_screen.dart';
 import 'audit_export_dialog.dart';
 
@@ -456,6 +457,33 @@ class _BalanceSheetScreenState extends State<BalanceSheetScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ],
+            if (auth.isSoftAdmin) ...[
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFDC2626),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                  icon: const Icon(Icons.delete_forever, size: 16),
+                  label: Text(
+                    isMr ? 'कायमचे हटवा (SoftAdmin Hard Delete)' : 'Hard Delete (SoftAdmin)',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(dialogCtx);
+                    await FirestoreService.instance.softAdminHardDeleteLedgerEntry(entry.id);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(isMr ? 'एन्ट्री कायमची डिलीट झाली!' : 'Record hard deleted!')),
+                      );
+                    }
+                  },
                 ),
               ),
             ],

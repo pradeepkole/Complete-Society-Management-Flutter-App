@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../l10n/language_provider.dart';
 import '../providers/auth_provider.dart';
 import '../screens/admin/society_settings_screen.dart';
+import '../screens/admin/soft_admin_control_screen.dart';
 import 'language_toggle_button.dart';
 import 'society_logo_widget.dart';
 
@@ -76,6 +77,17 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       actions: [
         if (actions != null) ...actions!,
+        if (auth.isSoftAdmin)
+          IconButton(
+            icon: const Icon(Icons.shield, color: Color(0xFF38BDF8), size: 22),
+            tooltip: isMr ? 'SoftAdmin मास्टर कंट्रोल' : 'SoftAdmin Master Control',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SoftAdminControlScreen()),
+              );
+            },
+          ),
         if (showLanguageToggle)
           const Padding(
             padding: EdgeInsets.only(right: 4),

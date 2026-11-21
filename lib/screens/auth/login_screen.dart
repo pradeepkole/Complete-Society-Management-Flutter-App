@@ -14,6 +14,122 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isGoogleLoading = false;
+  int _logoTapCount = 0;
+  DateTime? _lastLogoTap;
+
+  void _onLogoTap(AuthProvider auth, bool isMr) {
+    final now = DateTime.now();
+    if (_lastLogoTap == null || now.difference(_lastLogoTap!) > const Duration(seconds: 3)) {
+      _logoTapCount = 1;
+    } else {
+      _logoTapCount++;
+    }
+    _lastLogoTap = now;
+
+    if (_logoTapCount >= 5) {
+      _logoTapCount = 0;
+      _showMasterPinDialog(auth, isMr);
+    }
+  }
+
+  void _showMasterPinDialog(AuthProvider auth, bool isMr) {
+    final pinController = TextEditingController();
+    String? localError;
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.security, color: Color(0xFFDC2626)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isMr ? 'मास्टर ॲडमिन ऍक्सेस (SoftAdmin)' : 'Master Admin Access',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isMr
+                    ? 'कृपया ६-अंकी अधिकृत सुरक्षा कोड प्रविष्ट करा:'
+                    : 'Enter authorized 6-digit master security PIN:',
+                style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: pinController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                obscureText: true,
+                autofocus: true,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.password, color: Color(0xFFDC2626)),
+                  hintText: '••••••',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  counterText: '',
+                ),
+              ),
+              if (localError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  localError!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(isMr ? 'रद्द करा' : 'Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      final pin = pinController.text.trim();
+                      if (pin != '458653' && pin != '681814') {
+                        setDialogState(() {
+                          localError = isMr ? 'अवैध मास्टर कोड! पुन्हा प्रयत्न करा.' : 'Invalid master PIN!';
+                        });
+                        return;
+                      }
+
+                      setDialogState(() => isSubmitting = true);
+                      final success = await auth.signInWithMasterPin(pin);
+                      if (context.mounted) {
+                        if (success) {
+                          Navigator.pop(ctx);
+                        } else {
+                          setDialogState(() {
+                            isSubmitting = false;
+                            localError = auth.errorMessage ?? (isMr ? 'लॉगिन अयशस्वी.' : 'Failed');
+                          });
+                        }
+                      }
+                    },
+              child: isSubmitting
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text(isMr ? 'प्रवेश करा' : 'Unlock'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<void> _handleGoogleSignIn(AuthProvider auth, bool isMr) async {
     setState(() => _isGoogleLoading = true);
@@ -236,49 +352,55 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 36),
 
-              // App Logo & Branding
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF1E3A8A).withOpacity(0.3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
+              // App Logo & Branding (Tap 5 times for secret SoftAdmin PIN entrance)
+              GestureDetector(
+                onTap: () => _onLogoTap(auth, isMr),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF1E3A8A).withOpacity(0.3),
+                            blurRadius: 16,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.apartment_rounded,
+                        size: 52,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      isMr ? 'सोसायटी गेट' : 'Society Gate',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1E3A8A),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      isMr ? 'गृहनिर्माण संस्था व्यवस्थापन प्रणाली' : 'Housing Society Management System',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
                   ],
-                ),
-                child: const Icon(
-                  Icons.apartment_rounded,
-                  size: 52,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              Text(
-                isMr ? 'सोसायटी गेट' : 'Society Gate',
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E3A8A),
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                isMr ? 'गृहनिर्माण संस्था व्यवस्थापन प्रणाली' : 'Housing Society Management System',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 36),
@@ -361,11 +483,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              Text(
-                isMr
-                    ? '🔒 सुरक्षित व १-क्लिक लॉगिन • मोबाईल नंबर ऐच्छिक'
-                    : '🔒 Fast 1-click login • Mobile number is optional',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              GestureDetector(
+                onLongPress: () => _showMasterPinDialog(auth, isMr),
+                child: Text(
+                  isMr
+                      ? '🔒 सुरक्षित व १-क्लिक लॉगिन • मोबाईल नंबर ऐच्छिक'
+                      : '🔒 Fast 1-click login • Mobile number is optional',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
               ),
               const SizedBox(height: 24),
 

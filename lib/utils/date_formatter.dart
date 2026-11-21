@@ -14,13 +14,25 @@ class AppDateFormatter {
 
   static String formatDate(DateTime date, {bool isMarathi = false}) {
     if (isMarathi) {
-      // e.g. 20 नोव्हेंबर 2026
-      return DateFormat('dd MMM yyyy', 'mr').format(date);
+      const mrMonths = [
+        'जानेवारी', 'फेब्रुवारी', 'मार्च', 'एप्रिल', 'मे', 'जून',
+        'जुलै', 'ऑगस्ट', 'सप्टेंबर', 'ऑक्टोबर', 'नोव्हेंबर', 'डिसेंबर'
+      ];
+      final day = date.day.toString().padLeft(2, '0');
+      final month = (date.month >= 1 && date.month <= 12) ? mrMonths[date.month - 1] : date.month.toString();
+      return '$day $month ${date.year}';
     }
     return DateFormat('dd MMM yyyy').format(date);
   }
 
   static String formatDateTime(DateTime date, {bool isMarathi = false}) {
+    if (isMarathi) {
+      final dStr = formatDate(date, isMarathi: true);
+      final hour = date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
+      final minute = date.minute.toString().padLeft(2, '0');
+      final period = date.hour >= 12 ? 'दु.' : 'स.';
+      return '$dStr, $hour:$minute $period';
+    }
     return DateFormat('dd MMM yyyy, hh:mm a').format(date);
   }
 

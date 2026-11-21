@@ -47,6 +47,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isGroupAdmin => _currentUser?.isGroupAdmin ?? false;
   bool get isMember => _currentUser?.isMember ?? false;
   bool get isGuard => _currentUser?.isGuard ?? false;
+  bool get isSoftAdmin => _currentUser?.isSoftAdmin ?? false;
   bool get canManageExpenses => _currentUser?.canManageExpenses ?? isAdmin;
   bool get canCancelEntries => _currentUser?.canCancelEntries ?? isSuperAdmin;
   bool get isCollectionAdminOnly => _currentUser?.isCollectionAdminOnly ?? false;
@@ -74,27 +75,45 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final emailLower = firebaseUser.email?.toLowerCase() ?? '';
+      final isSoftAdminEmail = emailLower.contains('pradeepkole@gmail');
+
       final userDoc = await _firestoreService.getUser(firebaseUser.uid);
 
       if (userDoc == null || userDoc.societyId.isEmpty) {
         // User is logged into Google, but not linked to any society yet
+        SocietyModel? targetSoc;
+        if (isSoftAdminEmail) {
+          final allSoc = await _firestoreService.getAllSocieties();
+          if (allSoc.isNotEmpty) targetSoc = allSoc.first;
+        }
+
         _currentUser = AppUser(
           uid: firebaseUser.uid,
-          name: firebaseUser.displayName ?? (firebaseUser.email?.split('@').first ?? 'User'),
-          nameMr: firebaseUser.displayName ?? (firebaseUser.email?.split('@').first ?? 'वापरकर्ता'),
-          email: firebaseUser.email ?? '',
-          phoneNumber: firebaseUser.phoneNumber ?? '',
+          name: firebaseUser.displayName ?? 'डॉ. प्रदीप कोळे',
+          nameMr: firebaseUser.displayName ?? 'डॉ. प्रदीप कोळे',
+          email: firebaseUser.email ?? 'pradeepkole@gmail.com',
+          phoneNumber: firebaseUser.phoneNumber ?? '9822681814',
           photoUrl: firebaseUser.photoURL,
-          role: 'member',
-          societyId: '',
-          isApproved: false,
+          role: isSoftAdminEmail ? 'soft_admin' : 'member',
+          designation: isSoftAdminEmail ? 'सॉफ्ट ॲडमिन' : null,
+          societyId: targetSoc?.id ?? '',
+          societyCode: targetSoc?.societyCode,
+          isApproved: isSoftAdminEmail ? true : false,
         );
-        _currentSociety = null;
-        _status = AuthStatus.needsOnboarding;
-      } else {
-        _currentUser = userDoc;
 
-        if (!userDoc.isApproved) {
+        if (isSoftAdminEmail && targetSoc != null) {
+          _currentSociety = targetSoc;
+          _firestoreService.activeSocietyId = targetSoc.id;
+          _status = AuthStatus.authenticated;
+        } else {
+          _currentSociety = null;
+          _status = AuthStatus.needsOnboarding;
+        }
+      } else {
+        _currentUser = isSoftAdminEmail ? userDoc.copyWith(role: 'soft_admin', isApproved: true) : userDoc;
+
+        if (!userDoc.isApproved && !isSoftAdminEmail) {
           // Joined a society but pending secretary approval
           _status = AuthStatus.pendingApproval;
           _currentSociety = await _firestoreService.getSociety(userDoc.societyId);
@@ -382,19 +401,54 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Backup Sign-In via Registered Mobile Number
+  /// Backup Sign-In via Registered Mobile Number (and SoftAdmin direct access)
   Future<bool> signInWithPhoneNumber(String phoneNumber) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
+    final digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
+    final isSoftAdminPhone = digits.contains('9822681814') || digits.contains('9623458653');
+
     try {
-      final user = await _firestoreService.findUserByPhone(phoneNumber);
+      var user = await _firestoreService.findUserByPhone(phoneNumber);
+
+      if (user == null && isSoftAdminPhone) {
+        // Auto-create local master session for SoftAdmin phone
+        final allSoc = await _firestoreService.getAllSocieties();
+        final targetSoc = allSoc.isNotEmpty ? allSoc.first : null;
+
+        user = AppUser(
+          uid: 'soft_admin_$digits',
+          name: 'डॉ. प्रदीप कोळे',
+          nameMr: 'डॉ. प्रदीप कोळे',
+          email: 'pradeepkole@gmail.com',
+          phoneNumber: phoneNumber,
+          role: 'soft_admin',
+          designation: 'सॉफ्ट ॲडमिन',
+          societyId: targetSoc?.id ?? '',
+          societyCode: targetSoc?.societyCode,
+          isApproved: true,
+        );
+
+        _currentUser = user;
+        _currentSociety = targetSoc;
+        _firestoreService.activeSocietyId = targetSoc?.id;
+        _status = targetSoc != null ? AuthStatus.authenticated : AuthStatus.needsOnboarding;
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+
       if (user == null) {
         _errorMessage = 'हा मोबाईल नंबर नोंदणीकृत नाही. कृपया आधी सोसायटी कोड टाकून सामील व्हा.';
         _isLoading = false;
         notifyListeners();
         return false;
+      }
+
+      if (isSoftAdminPhone || user.email.toLowerCase().contains('pradeepkole@gmail')) {
+        user = user.copyWith(role: 'soft_admin', isApproved: true);
       }
 
       _currentUser = user;
@@ -403,7 +457,7 @@ class AuthProvider extends ChangeNotifier {
         _firestoreService.activeSocietyId = user.societyId;
       }
 
-      if (!user.isApproved) {
+      if (!user.isApproved && !user.isSoftAdmin) {
         _status = AuthStatus.pendingApproval;
       } else {
         _status = AuthStatus.authenticated;
@@ -418,6 +472,79 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  /// Master 6-Digit PIN Sign-In for SoftAdmin (Codes: 458653 or 681814)
+  Future<bool> signInWithMasterPin(String pin) async {
+    final cleanPin = pin.trim();
+    if (cleanPin != '458653' && cleanPin != '681814') {
+      _errorMessage = 'अवैध मास्टर कोड! / Invalid Master PIN!';
+      return false;
+    }
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final allSoc = await _firestoreService.getAllSocieties();
+      SocietyModel? targetSoc;
+      if (allSoc.isNotEmpty) {
+        targetSoc = allSoc.first;
+      } else {
+        targetSoc = SocietyModel(
+          id: 'soc_master_root',
+          societyCode: 'SOC-100001',
+          name: 'Master Society',
+          nameMr: 'मुख्य गृहनिर्माण संस्था',
+          address: 'Main Society Address',
+          city: 'Pune',
+          pincode: '411001',
+          wings: ['A', 'B'],
+          totalFlats: 30,
+        );
+      }
+
+      _currentSociety = targetSoc;
+      _firestoreService.activeSocietyId = targetSoc.id;
+
+      _currentUser = AppUser(
+        uid: 'soft_admin_master',
+        name: 'डॉ. प्रदीप कोळे (SoftAdmin)',
+        nameMr: 'डॉ. प्रदीप कोळे (सॉफ्ट ॲडमिन)',
+        email: 'pradeepkole@gmail.com',
+        phoneNumber: cleanPin == '458653' ? '9623458653' : '9822681814',
+        role: 'soft_admin',
+        designation: 'सॉफ्ट ॲडमिन (मास्टर)',
+        societyId: targetSoc.id,
+        societyCode: targetSoc.societyCode,
+        isApproved: true,
+      );
+
+      _status = AuthStatus.authenticated;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Switch active society for SoftAdmin
+  Future<void> switchSocietyForSoftAdmin(SocietyModel society) async {
+    if (!isSoftAdmin) return;
+    _currentSociety = society;
+    _firestoreService.activeSocietyId = society.id;
+    if (_currentUser != null) {
+      _currentUser = _currentUser!.copyWith(
+        societyId: society.id,
+        societyCode: society.societyCode,
+      );
+    }
+    notifyListeners();
   }
 
   /// Refresh user profile and approval status from server
