@@ -183,6 +183,48 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Quick Test Sign-In into Onboarding flow without requiring Google Play Services SHA-1
+  Future<void> signInForOnboardingTesting({
+    String? name,
+    String? email,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      String uid = 'test_${DateTime.now().millisecondsSinceEpoch}';
+      try {
+        final anon = await _firebaseAuth.signInAnonymously();
+        if (anon.user != null) {
+          uid = anon.user!.uid;
+        }
+      } catch (_) {
+        // Fallback to timestamp uid if anonymous auth is disabled
+      }
+
+      final testUser = AppUser(
+        uid: uid,
+        name: name ?? 'डॉ. प्रदीप कोळे',
+        nameMr: name ?? 'डॉ. प्रदीप कोळे',
+        email: email ?? 'pradip.kole@societygate.com',
+        phoneNumber: '',
+        role: 'admin',
+        societyId: '',
+        isApproved: false,
+      );
+
+      _currentUser = testUser;
+      _currentSociety = null;
+      _status = AuthStatus.needsOnboarding;
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   /// Register a brand new Society (Creator becomes Admin)
   Future<bool> createNewSociety({
     required String name,

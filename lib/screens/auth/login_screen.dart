@@ -20,15 +20,81 @@ class _LoginScreenState extends State<LoginScreen> {
     final success = await auth.signInWithGoogle();
     if (mounted) {
       setState(() => _isGoogleLoading = false);
-      if (!success && auth.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(auth.errorMessage!),
-            backgroundColor: Colors.red,
-          ),
-        );
+      if (!success) {
+        _showGoogleAuthNoticeDialog(auth, isMr);
       }
     }
+  }
+
+  void _showGoogleAuthNoticeDialog(AuthProvider auth, bool isMr) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.info_outline, color: Color(0xFF1E3A8A)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                isMr ? 'Google साइन-इन माहिती' : 'Google Sign-In Notice',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isMr
+                  ? 'Android ॲपवर थेट Google ने साइन इन करण्यासाठी Firebase Console मध्ये खालील SHA-1 फिंगरप्रिंट जोडणे आवश्यक असते:'
+                  : 'To enable Google Sign-In on Android, add this SHA-1 fingerprint in Firebase Console:',
+              style: const TextStyle(fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFCBD5E1)),
+              ),
+              child: const SelectableText(
+                '76:4B:AD:25:DE:1F:B3:96:B6:30:25:3F:88:C1:E2:28:AF:30:6F:92',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'monospace', color: Color(0xFF1E293B)),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              isMr
+                  ? 'तोपर्यंत आपण आत्ता लगेच खालील बटण दाबून थेट नवीन सोसायटी नोंदणी, लोगो जोडणे व सर्व फीचर्स वापरून पाहू शकता!'
+                  : 'Meanwhile, you can tap below to test Society Onboarding, Logo Upload, and all features right now!',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(isMr ? 'रद्द करा' : 'Cancel'),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.rocket_launch, size: 16),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E3A8A),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              auth.signInForOnboardingTesting();
+            },
+            child: Text(isMr ? 'थेट चाचणी सुरू करा' : 'Continue in Test Mode'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -204,7 +270,35 @@ class _LoginScreenState extends State<LoginScreen> {
                     : '🔒 Fast 1-click login • Mobile number is optional',
                 style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 24),
+
+              // DIRECT ONBOARDING TEST BUTTON
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.apartment_rounded, color: Colors.white, size: 20),
+                  label: Text(
+                    isMr ? '🚀 नवीन ऑनबोर्डिंग व लोगो चाचणी' : '🚀 Test Onboarding & Logo',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E3A8A),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 3,
+                  ),
+                  onPressed: () => auth.signInForOnboardingTesting(),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                isMr
+                    ? 'सोसायटी नाव, पत्ता, विंग्स व लोगो अपलोडची थेट चाचणी घ्या'
+                    : 'Test society creation, address, wings & logo upload live',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 28),
 
               // OR Divider
               Row(
