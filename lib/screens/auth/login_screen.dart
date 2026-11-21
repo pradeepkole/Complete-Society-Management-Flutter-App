@@ -90,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Navigator.pop(ctx);
               auth.signInForOnboardingTesting();
             },
-            child: Text(isMr ? 'थेट चाचणी सुरू करा' : 'Continue in Test Mode'),
+            label: Text(isMr ? 'थेट चाचणी सुरू करा' : 'Continue in Test Mode'),
           ),
         ],
       ),
