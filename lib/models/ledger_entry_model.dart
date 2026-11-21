@@ -14,6 +14,11 @@ class LedgerEntry {
   final String? relatedBillId;
   final String recordedByUid;
   final String notes;
+  final bool isCancelled;
+  final String? cancellationReason;
+  final DateTime? cancelledAt;
+  final String? cancelledByUid;
+  final bool isReversal; // true if this entry is the automatic negative contra entry
 
   LedgerEntry({
     required this.id,
@@ -31,6 +36,11 @@ class LedgerEntry {
     this.relatedBillId,
     required this.recordedByUid,
     this.notes = '',
+    this.isCancelled = false,
+    this.cancellationReason,
+    this.cancelledAt,
+    this.cancelledByUid,
+    this.isReversal = false,
   });
 
   bool get isIncome => type == 'income';
@@ -55,6 +65,11 @@ class LedgerEntry {
       relatedBillId: data['relatedBillId'],
       recordedByUid: data['recordedByUid'] ?? '',
       notes: data['notes'] ?? '',
+      isCancelled: data['isCancelled'] ?? false,
+      cancellationReason: data['cancellationReason'],
+      cancelledAt: data['cancelledAt'] != null ? DateTime.tryParse(data['cancelledAt'].toString()) : null,
+      cancelledByUid: data['cancelledByUid'],
+      isReversal: data['isReversal'] ?? false,
     );
   }
 
@@ -74,6 +89,11 @@ class LedgerEntry {
       'relatedBillId': relatedBillId,
       'recordedByUid': recordedByUid,
       'notes': notes,
+      'isCancelled': isCancelled,
+      'cancellationReason': cancellationReason,
+      'cancelledAt': cancelledAt?.toIso8601String(),
+      'cancelledByUid': cancelledByUid,
+      'isReversal': isReversal,
     };
   }
 }

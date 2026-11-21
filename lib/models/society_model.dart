@@ -18,6 +18,12 @@ class SocietyModel {
   final int totalFlats;
   final String adminUid;
   final bool allowMobileLogin;
+  final String groupingType; // 'wing' or 'floor'
+  final int superAdminTermMonths; // 1, 3, 6, 12 months
+  final DateTime? superAdminAppointedDate;
+  final DateTime? superAdminNextDueDate;
+  final String? superAdminUid;
+  final String? chairmanUid;
   final DateTime? createdAt;
 
   SocietyModel({
@@ -40,11 +46,26 @@ class SocietyModel {
     this.totalFlats = 40,
     this.adminUid = '',
     this.allowMobileLogin = false,
+    this.groupingType = 'wing',
+    this.superAdminTermMonths = 3,
+    this.superAdminAppointedDate,
+    this.superAdminNextDueDate,
+    this.superAdminUid,
+    this.chairmanUid,
     this.createdAt,
   });
 
   bool get hasLogo => logoUrl != null && logoUrl!.trim().isNotEmpty;
   bool get hasUpiConfigured => upiId.trim().isNotEmpty;
+  bool get isWingWise => groupingType != 'floor';
+  bool get isFloorWise => groupingType == 'floor';
+
+  bool get isSuperAdminTermDue {
+    if (superAdminNextDueDate == null) return false;
+    final now = DateTime.now();
+    return now.isAfter(superAdminNextDueDate!) ||
+        superAdminNextDueDate!.difference(now).inDays <= 7;
+  }
 
   factory SocietyModel.fromMap(Map<String, dynamic> data, String id) {
     return SocietyModel(
@@ -67,6 +88,16 @@ class SocietyModel {
       totalFlats: (data['totalFlats'] as num?)?.toInt() ?? 40,
       adminUid: data['adminUid'] ?? '',
       allowMobileLogin: data['allowMobileLogin'] ?? false,
+      groupingType: data['groupingType'] ?? 'wing',
+      superAdminTermMonths: (data['superAdminTermMonths'] as num?)?.toInt() ?? 3,
+      superAdminAppointedDate: data['superAdminAppointedDate'] != null
+          ? DateTime.tryParse(data['superAdminAppointedDate'].toString())
+          : null,
+      superAdminNextDueDate: data['superAdminNextDueDate'] != null
+          ? DateTime.tryParse(data['superAdminNextDueDate'].toString())
+          : null,
+      superAdminUid: data['superAdminUid'],
+      chairmanUid: data['chairmanUid'],
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] is int
               ? DateTime.fromMillisecondsSinceEpoch(data['createdAt'])
@@ -95,6 +126,12 @@ class SocietyModel {
       'totalFlats': totalFlats,
       'adminUid': adminUid,
       'allowMobileLogin': allowMobileLogin,
+      'groupingType': groupingType,
+      'superAdminTermMonths': superAdminTermMonths,
+      'superAdminAppointedDate': superAdminAppointedDate?.toIso8601String(),
+      'superAdminNextDueDate': superAdminNextDueDate?.toIso8601String(),
+      'superAdminUid': superAdminUid,
+      'chairmanUid': chairmanUid,
       'createdAt': (createdAt ?? DateTime.now()).millisecondsSinceEpoch,
     };
   }
@@ -118,6 +155,12 @@ class SocietyModel {
     int? totalFlats,
     String? adminUid,
     bool? allowMobileLogin,
+    String? groupingType,
+    int? superAdminTermMonths,
+    DateTime? superAdminAppointedDate,
+    DateTime? superAdminNextDueDate,
+    String? superAdminUid,
+    String? chairmanUid,
   }) {
     return SocietyModel(
       id: id,
@@ -139,6 +182,12 @@ class SocietyModel {
       totalFlats: totalFlats ?? this.totalFlats,
       adminUid: adminUid ?? this.adminUid,
       allowMobileLogin: allowMobileLogin ?? this.allowMobileLogin,
+      groupingType: groupingType ?? this.groupingType,
+      superAdminTermMonths: superAdminTermMonths ?? this.superAdminTermMonths,
+      superAdminAppointedDate: superAdminAppointedDate ?? this.superAdminAppointedDate,
+      superAdminNextDueDate: superAdminNextDueDate ?? this.superAdminNextDueDate,
+      superAdminUid: superAdminUid ?? this.superAdminUid,
+      chairmanUid: chairmanUid ?? this.chairmanUid,
       createdAt: createdAt,
     );
   }

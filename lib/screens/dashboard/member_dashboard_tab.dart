@@ -13,6 +13,7 @@ import '../billing/member_bills_screen.dart';
 import '../accounting/member_transparency_screen.dart';
 import '../complaints/raise_complaint_screen.dart';
 import '../notices/notice_board_screen.dart';
+import '../admin/committee_directory_screen.dart';
 
 class MemberDashboardTab extends StatelessWidget {
   const MemberDashboardTab({super.key});
@@ -327,7 +328,15 @@ class MemberDashboardTab extends StatelessWidget {
                 color: Colors.blue.shade800,
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MemberBillsScreen())),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
+              _buildMemberAction(
+                context,
+                icon: Icons.badge,
+                label: lang.isMarathi ? 'समिती फलक' : 'Committee',
+                color: const Color(0xFF0D9488),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommitteeDirectoryScreen())),
+              ),
+              const SizedBox(width: 8),
               _buildMemberAction(
                 context,
                 icon: Icons.report_problem,
@@ -335,7 +344,7 @@ class MemberDashboardTab extends StatelessWidget {
                 color: Colors.orange.shade800,
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RaiseComplaintScreen())),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               _buildMemberAction(
                 context,
                 icon: Icons.campaign,

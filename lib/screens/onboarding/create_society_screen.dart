@@ -27,6 +27,9 @@ class _CreateSocietyScreenState extends State<CreateSocietyScreen> {
   final _wingsController = TextEditingController(text: 'A, B');
   final _flatsController = TextEditingController(text: '30');
 
+  String _groupingType = 'wing'; // 'wing' or 'floor'
+  int _superAdminTermMonths = 3;
+
   Uint8List? _logoBytes;
   final ImagePicker _picker = ImagePicker();
   bool _isSubmitting = false;
@@ -115,6 +118,8 @@ class _CreateSocietyScreenState extends State<CreateSocietyScreen> {
       wings: wingsList.isNotEmpty ? wingsList : ['A', 'B'],
       totalFlats: totalFlats,
       logoBytes: _logoBytes,
+      groupingType: _groupingType,
+      superAdminTermMonths: _superAdminTermMonths,
     );
 
     setState(() => _isSubmitting = false);
@@ -411,6 +416,68 @@ class _CreateSocietyScreenState extends State<CreateSocietyScreen> {
                     ),
                   ),
                 ],
+              ),
+              // Grouping Type (Wing vs Floor)
+              Text(
+                isMr ? 'व्यवस्थापन गट पद्धत (Grouping Structure) *' : 'Management Grouping Structure *',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  children: [
+                    RadioListTile<String>(
+                      title: Text(isMr ? 'विंग पद्धत (Wing-wise) - उदा. A, B, C विंग्स' : 'Wing-wise (e.g. Wing A, B, C)'),
+                      subtitle: Text(isMr ? 'प्रत्येक विंगसाठी स्वतंत्र ग्रुप ॲडमिन राहील' : 'Each wing will have its own Group Admin'),
+                      value: 'wing',
+                      groupValue: _groupingType,
+                      onChanged: (val) {
+                        if (val != null) setState(() => _groupingType = val);
+                      },
+                    ),
+                    const Divider(height: 1),
+                    RadioListTile<String>(
+                      title: Text(isMr ? 'मजला पद्धत (Floor-wise) - उदा. १ ला, २ रा मजला' : 'Floor-wise (e.g. 1st, 2nd, 3rd Floor)'),
+                      subtitle: Text(isMr ? 'प्रत्येक मजल्यासाठी स्वतंत्र ग्रुप ॲडमिन राहील' : 'Each floor will have its own Group Admin'),
+                      value: 'floor',
+                      groupValue: _groupingType,
+                      onChanged: (val) {
+                        if (val != null) setState(() => _groupingType = val);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Super Admin Term
+              Text(
+                isMr ? 'सुपर ॲडमिन (सचिव) कार्यकाळ *' : 'Super Admin Tenure *',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<int>(
+                value: _superAdminTermMonths,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  prefixIcon: const Icon(Icons.timer),
+                  helperText: isMr
+                      ? 'मुदत संपत आल्यावर ॲपमध्ये कमिटीला सूचना येईल'
+                      : 'App will alert committee when term is near completion',
+                ),
+                items: [
+                  DropdownMenuItem(value: 1, child: Text(isMr ? '१ महिना (1 Month)' : '1 Month')),
+                  DropdownMenuItem(value: 3, child: Text(isMr ? '३ महिने (3 Months - शिफारस केलेले)' : '3 Months (Recommended)')),
+                  DropdownMenuItem(value: 6, child: Text(isMr ? '६ महिने (6 Months)' : '6 Months')),
+                  DropdownMenuItem(value: 12, child: Text(isMr ? '१ वर्ष (12 Months)' : '1 Year (12 Months)')),
+                ],
+                onChanged: (val) {
+                  if (val != null) setState(() => _superAdminTermMonths = val);
+                },
               ),
               const SizedBox(height: 28),
 

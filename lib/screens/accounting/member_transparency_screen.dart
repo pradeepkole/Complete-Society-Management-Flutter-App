@@ -198,9 +198,34 @@ class MemberTransparencyScreen extends StatelessWidget {
                         size: 18,
                       ),
                     ),
-                    title: Text(
-                      lang.isMarathi ? entry.titleMr : entry.title,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            lang.isMarathi ? (entry.titleMr.isNotEmpty ? entry.titleMr : entry.title) : (entry.title.isNotEmpty ? entry.title : entry.titleMr),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              decoration: entry.isCancelled ? TextDecoration.lineThrough : null,
+                              color: entry.isCancelled ? Colors.grey.shade600 : null,
+                            ),
+                          ),
+                        ),
+                        if (entry.isCancelled)
+                          Container(
+                            margin: const EdgeInsets.only(left: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.red)),
+                            child: Text(lang.isMarathi ? 'रद्द' : 'Cancelled', style: const TextStyle(fontSize: 9, color: Colors.red, fontWeight: FontWeight.bold)),
+                          )
+                        else if (entry.isReversal)
+                          Container(
+                            margin: const EdgeInsets.only(left: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.orange)),
+                            child: Text(lang.isMarathi ? 'विरुद्ध नोंद' : 'Contra', style: const TextStyle(fontSize: 9, color: Colors.orange, fontWeight: FontWeight.bold)),
+                          ),
+                      ],
                     ),
                     subtitle: Text(
                       '${entry.voucherNo} • ${entry.vendorName.isNotEmpty ? entry.vendorName : entry.paymentMode.toUpperCase()} • ${entry.transactionDate.day}/${entry.transactionDate.month}',

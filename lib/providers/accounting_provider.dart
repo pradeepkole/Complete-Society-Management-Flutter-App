@@ -98,6 +98,19 @@ class AccountingProvider extends ChangeNotifier {
     );
   }
 
+  /// Super Admin cancels an expense entry; triggers automatic negative contra entry
+  Future<void> cancelLedgerEntry({
+    required String entryId,
+    required String reason,
+    required String adminUid,
+  }) async {
+    await _firestoreService.cancelLedgerEntry(
+      entryId: entryId,
+      reason: reason,
+      adminUid: adminUid,
+    );
+  }
+
   Future<Uint8List> exportAuditPdf({
     String? societyName,
     String? registrationNo,

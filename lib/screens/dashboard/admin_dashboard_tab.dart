@@ -18,6 +18,9 @@ import '../accounting/audit_export_dialog.dart';
 import '../notices/add_notice_screen.dart';
 import '../admin/admin_approvals_screen.dart';
 import '../admin/society_settings_screen.dart';
+import '../admin/committee_directory_screen.dart';
+import '../admin/handover_approval_screen.dart';
+import '../billing/group_admin_collection_screen.dart';
 
 class AdminDashboardTab extends StatelessWidget {
   const AdminDashboardTab({super.key});
@@ -42,6 +45,53 @@ class AdminDashboardTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Super Admin Term Alert Banner
+          if (society != null && society.isSuperAdminTermDue)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFEF4444)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.alarm, color: Colors.red, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isMr
+                              ? 'सुपर ॲडमिन (सचिव) पदाचा कार्यकाळ पूर्ण होत आला आहे!'
+                              : 'Super Admin tenure is near completion!',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF991B1B)),
+                        ),
+                        Text(
+                          isMr ? 'नवीन व्यक्तीची नियुक्ती करण्यासाठी टॅप करा' : 'Tap to manage tenure & appointments',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF7F1D1D)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const CommitteeDirectoryScreen()));
+                    },
+                    child: Text(isMr ? 'पद फलक' : 'Directory'),
+                  ),
+                ],
+              ),
+            ),
+
           // Pending Member Approvals Banner (Live stream)
           if (society != null)
             StreamBuilder<List<AppUser>>(
@@ -264,13 +314,47 @@ class AdminDashboardTab extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // Quick Actions Grid (Row 2 - Member Approvals & Settings)
+          // Quick Actions Grid (Row 2 - Member Approvals, Committee & Settings)
           Row(
             children: [
               _buildActionTile(
                 context,
+                icon: Icons.badge,
+                label: isMr ? 'समिती पद फलक' : 'Committee Directory',
+                color: const Color(0xFF0D9488),
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const CommitteeDirectoryScreen()));
+                },
+              ),
+              const SizedBox(width: 8),
+              if (auth.canManageExpenses) ...[
+                _buildActionTile(
+                  context,
+                  icon: Icons.verified_user,
+                  label: isMr ? 'हस्तांतरण पडताळणी' : 'Handovers',
+                  color: const Color(0xFF059669),
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const HandoverApprovalScreen()));
+                  },
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (auth.isGroupAdmin) ...[
+                _buildActionTile(
+                  context,
+                  icon: Icons.point_of_sale,
+                  label: isMr ? 'माझे गट संकलन' : 'My Collection',
+                  color: const Color(0xFF2563EB),
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const GroupAdminCollectionScreen()));
+                  },
+                ),
+                const SizedBox(width: 8),
+              ],
+              _buildActionTile(
+                context,
                 icon: Icons.how_to_reg,
-                label: isMr ? 'सदस्य मंजुरी' : 'Member Approvals',
+                label: isMr ? 'सदस्य मंजुरी' : 'Approvals',
                 color: const Color(0xFFD97706),
                 onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminApprovalsScreen()));
@@ -280,7 +364,7 @@ class AdminDashboardTab extends StatelessWidget {
               _buildActionTile(
                 context,
                 icon: Icons.settings,
-                label: isMr ? 'सोसायटी व UPI सेटिंग्ज' : 'Society & UPI Settings',
+                label: isMr ? 'सोसायटी सेटिंग्ज' : 'Settings',
                 color: const Color(0xFF6B21A8),
                 onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const SocietySettingsScreen()));

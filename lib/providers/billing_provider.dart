@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/maintenance_bill_model.dart';
@@ -116,6 +117,73 @@ class BillingProvider extends ChangeNotifier {
       bill: bill,
       paymentRef: utrRef,
       paymentMode: paymentMode,
+    );
+  }
+
+  /// Group Admin records member payment (Cash with receipt photo or UPI with screenshot)
+  Future<void> recordMemberPaymentByAdmin({
+    required MaintenanceBill bill,
+    required String paymentMode, // 'cash' or 'upi'
+    required String utrRef,
+    Uint8List? proofBytes,
+    required String adminUid,
+  }) async {
+    String? proofUrl;
+    if (proofBytes != null && proofBytes.isNotEmpty) {
+      proofUrl = 'data:image/jpeg;base64,${base64Encode(proofBytes)}';
+    }
+
+    await _firestoreService.completePaymentAndCreditLedger(
+      bill: bill,
+      paymentRef: utrRef,
+      paymentMode: paymentMode,
+      paymentProofUrl: proofUrl,
+      collectedByAdminUid: adminUid,
+    );
+  }
+
+  /// Generate monthly maintenance bills divided equally from actual recorded expenses + Round Off
+  Future<void> generateBillsBasedOnActualExpenses({
+    required int month,
+    required int year,
+    required DateTime dueDate,
+    required double totalActualExpense,
+    String? societyId,
+    List<Map<String, String>>? flats,
+  }) async {
+    final targetSocietyId = societyId ?? _societyId;
+    if (targetSocietyId == null) return;
+
+    List<Map<String, String>> targetFlats = flats ?? [];
+    if (targetFlats.isEmpty) {
+      final society = await _firestoreService.getSociety(targetSocietyId);
+      final wings = society?.wings ?? ['A', 'B'];
+      final flatsPerWing = ((society?.totalFlats ?? 20) / wings.length).ceil();
+      for (var w in wings) {
+        for (int i = 1; i <= flatsPerWing; i++) {
+          final floor = (i - 1) ~/ 4 + 1;
+          final unit = (i - 1) % 4 + 1;
+          final flatNum = '$w-${floor}0$unit';
+          targetFlats.add({'flat': flatNum, 'wing': w, 'name': 'Resident $flatNum'});
+        }
+      }
+    }
+
+    final flatsCount = targetFlats.isNotEmpty ? targetFlats.length : 1;
+    final rawShare = totalActualExpense / flatsCount;
+    final roundedShare = rawShare.roundToDouble();
+    final roundOff = roundedShare - rawShare;
+
+    await _firestoreService.generateMonthlyBillsBatch(
+      societyId: targetSocietyId,
+      month: month,
+      year: year,
+      baseAmount: roundedShare,
+      totalMonthlyExpense: totalActualExpense,
+      rawShareAmount: rawShare,
+      roundOffAmount: roundOff,
+      dueDate: dueDate,
+      flats: targetFlats,
     );
   }
 

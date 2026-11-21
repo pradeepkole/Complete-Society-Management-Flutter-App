@@ -58,6 +58,31 @@ class NoticeBoardScreen extends StatelessWidget {
 
   Widget _buildNoticeCard(BuildContext context, NoticeModel notice, LanguageProvider lang) {
     final isUrgent = notice.isUrgent;
+    final isMr = lang.isMarathi;
+
+    // Guaranteed fallback so Marathi or English text is NEVER missing or blank
+    final displayTitle = isMr
+        ? (notice.titleMr.trim().isNotEmpty ? notice.titleMr : notice.title)
+        : (notice.title.trim().isNotEmpty ? notice.title : notice.titleMr);
+
+    final displayContent = isMr
+        ? (notice.contentMr.trim().isNotEmpty ? notice.contentMr : notice.content)
+        : (notice.content.trim().isNotEmpty ? notice.content : notice.contentMr);
+
+    String categoryLabel;
+    switch (notice.category) {
+      case 'meeting_agm':
+        categoryLabel = isMr ? 'वार्षिक सभा (AGM)' : 'AGM Meeting';
+        break;
+      case 'maintenance':
+        categoryLabel = isMr ? 'देखभाल सूचना' : 'Maintenance Alert';
+        break;
+      case 'emergency':
+        categoryLabel = isMr ? 'तातडीचे परिपत्रक' : 'Emergency Notice';
+        break;
+      default:
+        categoryLabel = isMr ? 'सर्वसाधारण सूचना' : 'General Notice';
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -91,7 +116,7 @@ class NoticeBoardScreen extends StatelessWidget {
                         const Icon(Icons.warning_amber_rounded, size: 14, color: Color(0xFFDC2626)),
                         const SizedBox(width: 4),
                         Text(
-                          lang.tr('urgent'),
+                          isMr ? 'तातडीची सूचना' : 'URGENT',
                           style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFDC2626)),
                         ),
                       ],
@@ -105,12 +130,12 @@ class NoticeBoardScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      notice.category == 'meeting_agm' ? lang.tr('agmAlert') : lang.tr('normal'),
+                      categoryLabel,
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
                     ),
                   ),
                 Text(
-                  AppDateFormatter.formatDate(notice.publishedDate, isMarathi: lang.isMarathi),
+                  AppDateFormatter.formatDate(notice.publishedDate, isMarathi: isMr),
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                 ),
               ],
@@ -119,7 +144,7 @@ class NoticeBoardScreen extends StatelessWidget {
 
             // Notice Title
             Text(
-              lang.isMarathi ? notice.titleMr : notice.title,
+              displayTitle,
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -130,7 +155,7 @@ class NoticeBoardScreen extends StatelessWidget {
 
             // Notice Content
             Text(
-              lang.isMarathi ? notice.contentMr : notice.content,
+              displayContent,
               style: TextStyle(
                 fontSize: 13,
                 height: 1.45,
@@ -144,7 +169,7 @@ class NoticeBoardScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Issued by: ${notice.issuedByName}',
+                  '${isMr ? "जारीकर्ता" : "Issued by"}: ${notice.issuedByName}',
                   style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey.shade600),
                 ),
                 Icon(Icons.mark_email_read, size: 16, color: Colors.blue.shade800),

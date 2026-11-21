@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/maintenance_bill_model.dart';
 import '../../providers/billing_provider.dart';
+import '../../providers/accounting_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../l10n/language_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/date_formatter.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/summary_card.dart';
+import 'group_admin_collection_screen.dart';
+import '../admin/handover_approval_screen.dart';
 
 class BillingManagementScreen extends StatefulWidget {
   const BillingManagementScreen({super.key});
@@ -22,6 +26,8 @@ class _BillingManagementScreenState extends State<BillingManagementScreen> {
   Widget build(BuildContext context) {
     final lang = Provider.of<LanguageProvider>(context);
     final billing = Provider.of<BillingProvider>(context);
+    final auth = Provider.of<AuthProvider>(context);
+    final isMr = lang.isMarathi;
 
     final allBills = billing.allBills;
     final filteredBills = allBills.where((b) {
@@ -38,14 +44,44 @@ class _BillingManagementScreenState extends State<BillingManagementScreen> {
     return Scaffold(
       appBar: CustomAppBar(
         title: lang.tr('maintenanceBilling'),
+        actions: [
+          if (auth.isGroupAdmin)
+            IconButton(
+              icon: const Icon(Icons.collections_bookmark, color: Colors.white),
+              tooltip: isMr ? 'माझा विंग/मजला संकलन' : 'Group Collection',
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const GroupAdminCollectionScreen()));
+              },
+            ),
+          if (auth.canManageExpenses)
+            IconButton(
+              icon: const Icon(Icons.verified_user, color: Colors.white),
+              tooltip: isMr ? 'हस्तांतरण पडताळणी' : 'Handover Approvals',
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const HandoverApprovalScreen()));
+              },
+            ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppTheme.primaryNavy,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_card),
-        label: Text(lang.tr('generateBills')),
-        onPressed: () => _showGenerateBillsDialog(context, billing, lang),
-      ),
+      floatingActionButton: auth.canManageExpenses
+          ? FloatingActionButton.extended(
+              backgroundColor: AppTheme.primaryNavy,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add_card),
+              label: Text(isMr ? 'नवीन देयके तयार करा (खर्च विभाजन)' : 'Generate Bills (Divide Expenses)'),
+              onPressed: () => _showGenerateBillsDialog(context, billing, lang),
+            )
+          : (auth.isGroupAdmin
+              ? FloatingActionButton.extended(
+                  backgroundColor: const Color(0xFF059669),
+                  foregroundColor: Colors.white,
+                  icon: const Icon(Icons.point_of_sale),
+                  label: Text(isMr ? 'माझे गट संकलन' : 'My Group Collection'),
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const GroupAdminCollectionScreen()));
+                  },
+                )
+              : null),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -185,74 +221,159 @@ class _BillingManagementScreenState extends State<BillingManagementScreen> {
     final now = DateTime.now();
     int selectedMonth = now.month;
     int selectedYear = now.year;
-    final baseController = TextEditingController(text: '2500');
-    final sinkingController = TextEditingController(text: '300');
-    final repairController = TextEditingController(text: '200');
-    final waterController = TextEditingController(text: '350');
+    final isMr = lang.isMarathi;
+
+    final accounting = Provider.of<AccountingProvider>(context, listen: false);
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+
+    // Compute actual expenses for the selected month
+    double computeMonthExpenses(int m, int y) {
+      return accounting.expenses
+          .where((e) => e.transactionDate.month == m && e.transactionDate.year == y && !e.isCancelled && !e.isReversal)
+          .fold(0.0, (sum, e) => sum + e.amount);
+    }
+
+    double initialActualExpense = computeMonthExpenses(selectedMonth, selectedYear);
+    final totalFlats = auth.currentSociety?.totalFlats ?? 20;
+
+    final expenseController = TextEditingController(
+      text: initialActualExpense > 0 ? initialActualExpense.toStringAsFixed(0) : '35000',
+    );
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(lang.tr('generateBills'), style: const TextStyle(fontSize: 16)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${lang.tr('billForMonth')}: ${AppDateFormatter.getMonthName(selectedMonth, isMarathi: lang.isMarathi)} $selectedYear',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setState) {
+          final currentExp = double.tryParse(expenseController.text) ?? 0;
+          final rawShare = totalFlats > 0 ? (currentExp / totalFlats) : 0.0;
+          final roundedShare = rawShare.roundToDouble();
+          final roundOff = roundedShare - rawShare;
+
+          return AlertDialog(
+            title: Text(
+              isMr ? 'मासिक देयके निर्मिती (खर्च समान वाटप)' : 'Generate Bills (Equal Division)',
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${lang.tr('billForMonth')}: ${AppDateFormatter.getMonthName(selectedMonth, isMarathi: isMr)} $selectedYear',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.primaryNavy),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Total Month Expense Field
+                  Text(
+                    isMr ? 'या महिन्यातील एकूण प्रत्यक्ष खर्च (₹) *' : 'Total Month Actual Expense (₹) *',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: expenseController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.currency_rupee),
+                      helperText: isMr
+                          ? 'लेजरमधील नोंदवलेल्या प्रत्यक्ष खर्चावरून आपोआप आलेली रक्कम'
+                          : 'Calculated from actual recorded ledger expenses',
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Division & Round Off Calculation Card
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.4)),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(isMr ? 'एकूण फ्लॅट संख्या:' : 'Total Flats:', style: const TextStyle(fontSize: 12)),
+                            Text('$totalFlats', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(isMr ? 'प्रति फ्लॅट मूळ हिस्सा:' : 'Per Flat Share:', style: const TextStyle(fontSize: 12)),
+                            Text('₹${rawShare.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(isMr ? 'राऊंड ऑफ (Round Off):' : 'Round Off:', style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                            Text(
+                              '${roundOff >= 0 ? "+" : ""}₹${roundOff.toStringAsFixed(2)}',
+                              style: const TextStyle(fontSize: 12, color: Colors.blueGrey, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              isMr ? 'प्रत्येक फ्लॅटचे अंतिम देयक:' : 'Final Payable Per Flat:',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E3A8A)),
+                            ),
+                            Text(
+                              '₹${roundedShare.toStringAsFixed(0)}.00',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF16A34A)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: baseController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: lang.tr('maintenanceCharge')),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: sinkingController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: lang.tr('sinkingFund')),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: repairController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: lang.tr('repairFund')),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: waterController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: lang.tr('waterCharges')),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogCtx), child: Text(lang.tr('cancel'))),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryNavy, foregroundColor: Colors.white),
+                onPressed: () async {
+                  final finalExpense = double.tryParse(expenseController.text) ?? 0;
+                  if (finalExpense <= 0) return;
+
+                  await billing.generateBillsBasedOnActualExpenses(
+                    month: selectedMonth,
+                    year: selectedYear,
+                    totalActualExpense: finalExpense,
+                    dueDate: DateTime.now().add(const Duration(days: 15)),
+                  );
+
+                  if (dialogCtx.mounted) {
+                    Navigator.pop(dialogCtx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          isMr
+                              ? '$selectedMonth/$selectedYear चे प्रत्यक्ष खर्च विभागून सर्व फ्लॅट्सची स्वतंत्र बिले तयार झाली!'
+                              : 'Bills generated with equal expense share for $selectedMonth/$selectedYear!',
+                        ),
+                      ),
+                    );
+                  }
+                },
+                child: Text(isMr ? 'सर्व बिले तयार करा' : 'Generate All Bills'),
               ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(lang.tr('cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await billing.generateBillsForMonth(
-                month: selectedMonth,
-                year: selectedYear,
-                baseAmount: double.tryParse(baseController.text) ?? 2500,
-                sinkingFund: double.tryParse(sinkingController.text) ?? 300,
-                repairFund: double.tryParse(repairController.text) ?? 200,
-                waterCharges: double.tryParse(waterController.text) ?? 350,
-                dueDate: DateTime.now().add(const Duration(days: 15)),
-              );
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Monthly maintenance bills generated for all flats!')),
-              );
-            },
-            child: Text(lang.tr('submit')),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

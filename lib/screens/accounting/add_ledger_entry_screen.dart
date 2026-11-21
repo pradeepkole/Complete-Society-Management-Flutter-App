@@ -52,6 +52,31 @@ class _AddLedgerEntryScreenState extends State<AddLedgerEntryScreen> {
     final isExpense = _type == 'expense';
     final categories = isExpense ? AppConstants.expenseCategories : AppConstants.incomeCategories;
 
+    if (!auth.canManageExpenses) {
+      return Scaffold(
+        appBar: CustomAppBar(title: lang.tr('recordExpense')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock, size: 50, color: Colors.orange),
+                const SizedBox(height: 16),
+                Text(
+                  lang.isMarathi
+                      ? 'खर्च नोंदवण्याचा अधिकार फक्त सुपर ॲडमिन (सचिव) आणि चेअरमन यांनाच आहे.'
+                      : 'Expense recording is restricted to Super Admin and Chairman only.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: CustomAppBar(
         title: isExpense ? lang.tr('recordExpense') : lang.tr('recordIncome'),

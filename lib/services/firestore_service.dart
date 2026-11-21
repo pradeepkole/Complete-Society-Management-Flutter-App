@@ -9,6 +9,7 @@ import '../models/ledger_entry_model.dart';
 import '../models/notice_model.dart';
 import '../models/complaint_model.dart';
 import '../models/visitor_model.dart';
+import '../models/collection_handover_model.dart';
 import 'firebase_storage_service.dart';
 
 class FirestoreService {
@@ -28,6 +29,7 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>> get noticesRef => _db.collection('notices');
   CollectionReference<Map<String, dynamic>> get complaintsRef => _db.collection('complaints');
   CollectionReference<Map<String, dynamic>> get visitorsRef => _db.collection('visitors');
+  CollectionReference<Map<String, dynamic>> get handoversRef => _db.collection('collection_handovers');
 
   // =======================================================
   // MULTI-TENANT ONBOARDING & SOCIETY MANAGEMENT
@@ -45,6 +47,8 @@ class FirestoreService {
     required int totalFlats,
     required AppUser adminUser,
     Uint8List? logoBytes,
+    String groupingType = 'wing',
+    int superAdminTermMonths = 3,
   }) async {
     final societyId = 'soc_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(999)}';
     
@@ -69,6 +73,9 @@ class FirestoreService {
       } catch (_) {}
     }
 
+    final appointedDate = DateTime.now();
+    final nextDueDate = appointedDate.add(Duration(days: 30 * superAdminTermMonths));
+
     final society = SocietyModel(
       id: societyId,
       societyCode: societyCode,
@@ -82,17 +89,23 @@ class FirestoreService {
       totalFlats: totalFlats > 0 ? totalFlats : 40,
       logoUrl: logoUrl,
       adminUid: adminUser.uid,
+      superAdminUid: adminUser.uid,
+      groupingType: groupingType,
+      superAdminTermMonths: superAdminTermMonths,
+      superAdminAppointedDate: appointedDate,
+      superAdminNextDueDate: nextDueDate,
       defaultMaintenanceAmount: 2000,
       createdAt: DateTime.now(),
     );
 
     await societiesRef.doc(societyId).set(society.toMap());
 
-    // Update admin user document with admin role & approved status
+    // Update admin user document with super_admin role & approved status
     final updatedAdmin = adminUser.copyWith(
       societyId: societyId,
       societyCode: societyCode,
-      role: 'admin',
+      role: 'super_admin',
+      designation: 'सुपर ॲडमिन (सचिव)',
       isApproved: true,
     );
     await usersRef.doc(adminUser.uid).set(updatedAdmin.toMap());
@@ -291,14 +304,18 @@ class FirestoreService {
     required int month,
     required int year,
     required double baseAmount,
-    required double sinkingFund,
-    required double repairFund,
-    required double waterCharges,
+    double sinkingFund = 0,
+    double repairFund = 0,
+    double waterCharges = 0,
+    double totalMonthlyExpense = 0,
+    double rawShareAmount = 0,
+    double roundOffAmount = 0,
     required DateTime dueDate,
     required List<Map<String, String>> flats,
   }) async {
     final batch = _db.batch();
-    final total = baseAmount + sinkingFund + repairFund + waterCharges;
+    final flatsCount = flats.isNotEmpty ? flats.length : 1;
+    final total = baseAmount > 0 ? baseAmount : (sinkingFund + repairFund + waterCharges);
 
     for (var f in flats) {
       final flat = f['flat'] ?? '';
@@ -322,6 +339,10 @@ class FirestoreService {
         repairFund: repairFund,
         waterCharges: waterCharges,
         totalAmount: total,
+        totalMonthlyExpense: totalMonthlyExpense,
+        totalSocietyFlats: flatsCount,
+        rawShareAmount: rawShareAmount,
+        roundOffAmount: roundOffAmount,
         dueDate: dueDate,
         status: 'unpaid',
       );
@@ -338,6 +359,8 @@ class FirestoreService {
     required String paymentRef,
     required String paymentMode,
     Uint8List? receiptPdfBytes,
+    String? paymentProofUrl,
+    String? collectedByAdminUid,
   }) async {
     String storageReceiptUrl = '';
     final receiptNo = 'REC-${bill.billYear}-${bill.billMonth.toString().padLeft(2, '0')}-${bill.flatNumber}';
@@ -357,8 +380,11 @@ class FirestoreService {
       'status': 'paid',
       'paidAt': DateTime.now().toIso8601String(),
       'paymentRef': paymentRef,
+      'paymentMode': paymentMode,
       'receiptNumber': receiptNo,
       if (storageReceiptUrl.isNotEmpty) 'receiptPdfUrl': storageReceiptUrl,
+      if (paymentProofUrl != null && paymentProofUrl.isNotEmpty) 'paymentProofUrl': paymentProofUrl,
+      if (collectedByAdminUid != null) 'collectedByAdminUid': collectedByAdminUid,
     });
 
     // 2. Automatically credit Society Accounting Ledger in Firestore
@@ -435,6 +461,157 @@ class FirestoreService {
     );
 
     await ledgerRef.doc(entry.id).set(entryWithDoc.toMap());
+  }
+
+  /// Cancel an expense entry and automatically record negative contra reversal entry (-ve entry)
+  /// Also adjusts member bills if bills were generated for that month!
+  Future<void> cancelLedgerEntry({
+    required String entryId,
+    required String reason,
+    required String adminUid,
+  }) async {
+    final doc = await ledgerRef.doc(entryId).get();
+    if (!doc.exists) return;
+    final original = LedgerEntry.fromMap(doc.data()!, doc.id);
+    if (original.isCancelled) return;
+
+    // 1. Mark original entry as cancelled (NEVER hard-deleted from database!)
+    await ledgerRef.doc(entryId).update({
+      'isCancelled': true,
+      'cancellationReason': reason,
+      'cancelledAt': DateTime.now().toIso8601String(),
+      'cancelledByUid': adminUid,
+    });
+
+    // 2. Automatically create negative contra reversal entry (-ve amount)
+    final reversalId = 'REV-${DateTime.now().millisecondsSinceEpoch}';
+    final reversalEntry = LedgerEntry(
+      id: reversalId,
+      societyId: original.societyId,
+      transactionDate: DateTime.now(),
+      type: original.type,
+      category: original.category,
+      title: 'रद्द: ${original.title}',
+      titleMr: 'रद्द खर्च: ${original.titleMr}',
+      amount: -original.amount.abs(), // Negative amount!
+      paymentMode: original.paymentMode,
+      voucherNo: 'REV-${original.voucherNo}',
+      vendorName: original.vendorName,
+      billAttachmentUrl: original.billAttachmentUrl,
+      recordedByUid: adminUid,
+      notes: 'मूळ खर्च रद्द केल्यामुळे आपोआप पडलेली विरुद्ध नोंद (Contra Entry). कारण: $reason',
+      isReversal: true,
+      isCancelled: false,
+    );
+    await ledgerRef.doc(reversalId).set(reversalEntry.toMap());
+
+    // 3. Automatically apply negative credit adjustment across all members' bills for that month/year
+    try {
+      final billsSnap = await billsRef
+          .where('societyId', isEqualTo: original.societyId)
+          .where('billMonth', isEqualTo: original.transactionDate.month)
+          .where('billYear', isEqualTo: original.transactionDate.year)
+          .get();
+
+      if (billsSnap.docs.isNotEmpty) {
+        final flatsCount = billsSnap.docs.length;
+        final perFlatCredit = (original.amount / flatsCount).roundToDouble();
+        for (var bDoc in billsSnap.docs) {
+          final currentAdj = (bDoc.data()['adjustments'] as num?)?.toDouble() ?? 0.0;
+          await billsRef.doc(bDoc.id).update({
+            'adjustments': currentAdj + perFlatCredit,
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  // =======================================================
+  // MODULE: COLLECTION HANDOVER & COMMITTEE APPOINTMENTS
+  // =======================================================
+
+  Stream<List<CollectionHandover>> streamCollectionHandovers(String societyId) {
+    return handoversRef
+        .where('societyId', isEqualTo: societyId)
+        .snapshots()
+        .map((snapshot) {
+          final list = snapshot.docs.map((d) => CollectionHandover.fromMap(d.data(), d.id)).toList();
+          list.sort((a, b) => b.handoverDate.compareTo(a.handoverDate));
+          return list;
+        });
+  }
+
+  Future<void> recordCollectionHandover({
+    required CollectionHandover handover,
+    Uint8List? proofBytes,
+  }) async {
+    String proofUrl = handover.proofPhotoUrl;
+    if (proofBytes != null && proofBytes.isNotEmpty) {
+      proofUrl = 'data:image/jpeg;base64,${base64Encode(proofBytes)}';
+    }
+    final docId = handover.id.isNotEmpty ? handover.id : 'hnd_${DateTime.now().millisecondsSinceEpoch}';
+    final entry = CollectionHandover(
+      id: docId,
+      societyId: handover.societyId,
+      groupAdminUid: handover.groupAdminUid,
+      groupAdminName: handover.groupAdminName,
+      assignedGroup: handover.assignedGroup,
+      totalAmount: handover.totalAmount,
+      paymentMode: handover.paymentMode,
+      proofPhotoUrl: proofUrl,
+      handoverDate: handover.handoverDate,
+      notes: handover.notes,
+      status: 'pending',
+    );
+    await handoversRef.doc(docId).set(entry.toMap());
+  }
+
+  Future<void> approveCollectionHandover({
+    required String handoverId,
+    required String superAdminUid,
+    required String superAdminName,
+  }) async {
+    await handoversRef.doc(handoverId).update({
+      'status': 'approved',
+      'verifiedByUid': superAdminUid,
+      'verifiedByName': superAdminName,
+      'verifiedAt': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<void> appointNewSuperAdmin({
+    required String societyId,
+    required String newSuperAdminUid,
+    required int termMonths,
+    required String appointedByUid,
+  }) async {
+    final appointedDate = DateTime.now();
+    final nextDueDate = appointedDate.add(Duration(days: 30 * termMonths));
+    await societiesRef.doc(societyId).update({
+      'superAdminUid': newSuperAdminUid,
+      'superAdminTermMonths': termMonths,
+      'superAdminAppointedDate': appointedDate.toIso8601String(),
+      'superAdminNextDueDate': nextDueDate.toIso8601String(),
+    });
+
+    await usersRef.doc(newSuperAdminUid).update({
+      'role': 'super_admin',
+      'designation': 'सुपर ॲडमिन (सचिव)',
+    });
+  }
+
+  Future<void> assignMemberRole({
+    required String uid,
+    required String role, // 'chairman', 'super_admin', 'group_admin', 'member'
+    String? assignedGroup,
+    String? designation,
+  }) async {
+    final updates = <String, dynamic>{
+      'role': role,
+      if (assignedGroup != null) 'assignedGroup': assignedGroup,
+      if (designation != null) 'designation': designation,
+    };
+    await usersRef.doc(uid).update(updates);
   }
 
   // =======================================================

@@ -42,8 +42,14 @@ class AuthProvider extends ChangeNotifier {
   String? get phoneVerificationId => _phoneVerificationId;
 
   bool get isAdmin => _currentUser?.isAdmin ?? false;
+  bool get isSuperAdmin => _currentUser?.isSuperAdmin ?? false;
+  bool get isChairman => _currentUser?.isChairman ?? false;
+  bool get isGroupAdmin => _currentUser?.isGroupAdmin ?? false;
   bool get isMember => _currentUser?.isMember ?? false;
   bool get isGuard => _currentUser?.isGuard ?? false;
+  bool get canManageExpenses => _currentUser?.canManageExpenses ?? isAdmin;
+  bool get canCancelEntries => _currentUser?.canCancelEntries ?? isSuperAdmin;
+  bool get isCollectionAdminOnly => _currentUser?.isCollectionAdminOnly ?? false;
 
   void _initAuthState() {
     try {
@@ -226,6 +232,8 @@ class AuthProvider extends ChangeNotifier {
     required List<String> wings,
     required int totalFlats,
     Uint8List? logoBytes,
+    String groupingType = 'wing',
+    int superAdminTermMonths = 3,
   }) async {
     if (_currentUser == null) return false;
 
@@ -245,13 +253,16 @@ class AuthProvider extends ChangeNotifier {
         totalFlats: totalFlats,
         adminUser: _currentUser!,
         logoBytes: logoBytes,
+        groupingType: groupingType,
+        superAdminTermMonths: superAdminTermMonths,
       );
 
       _currentSociety = society;
       _currentUser = _currentUser!.copyWith(
         societyId: society.id,
         societyCode: society.societyCode,
-        role: 'admin',
+        role: 'super_admin',
+        designation: 'सुपर ॲडमिन (सचिव)',
         isApproved: true,
       );
 
