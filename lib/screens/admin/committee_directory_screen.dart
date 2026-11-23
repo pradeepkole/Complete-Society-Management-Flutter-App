@@ -44,6 +44,7 @@ class CommitteeDirectoryScreen extends StatelessWidget {
           final superAdmin = members.where((m) => m.isSuperAdmin).firstOrNull;
           final groupAdmins = members.where((m) => m.isGroupAdmin).toList();
           final regularMembers = members.where((m) => !m.isChairman && !m.isSuperAdmin && !m.isGroupAdmin && !m.isGuard).toList();
+          final canSelectMembers = auth.isSoftAdmin || auth.isChairman || (chairman == null && auth.isSuperAdmin);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -119,62 +120,6 @@ class CommitteeDirectoryScreen extends StatelessWidget {
                     ),
                   ),
 
-                // Grouping Structure Mode Bar (With strict dues check)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFCBD5E1)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(isWingWise ? Icons.apartment : Icons.stairs, color: const Color(0xFF1E3A8A), size: 24),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              isMr ? 'व्यवस्थापन रचना:' : 'Grouping Mode:',
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                            ),
-                            Text(
-                              isWingWise
-                                  ? (isMr ? '🏢 विंग पद्धत (Wing-wise)' : '🏢 Wing-wise Mode')
-                                  : (isMr ? '🏬 मजला पद्धत (Floor-wise)' : '🏬 Floor-wise Mode'),
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFBFDBFE)),
-                        ),
-                        child: InkWell(
-                          onTap: () => _showGroupingLockedInfo(context, isMr),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.lock, size: 13, color: Color(0xFF1E40AF)),
-                              const SizedBox(width: 4),
-                              Text(
-                                isMr ? 'कार्यकाळ संपेपर्यंत लॉक' : 'Locked for Term',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
                 // Transparency Info Card
                 Container(
                   padding: const EdgeInsets.all(14),
@@ -215,7 +160,7 @@ class CommitteeDirectoryScreen extends StatelessWidget {
                   user: chairman,
                   defaultName: isMr ? 'चेअरमन नियुक्त नाही' : 'No Chairman Appointed',
                   isMr: isMr,
-                  canEdit: auth.canManageExpenses,
+                  canEdit: canSelectMembers,
                   onAssign: () => _showAssignRoleDialog(context, 'chairman', isMr ? 'चेअरमन' : 'Chairman', members, isMr),
                 ),
                 const SizedBox(height: 10),
@@ -228,7 +173,7 @@ class CommitteeDirectoryScreen extends StatelessWidget {
                   user: superAdmin,
                   defaultName: isMr ? 'सुपर ॲडमिन नियुक्त नाही' : 'No Super Admin Appointed',
                   isMr: isMr,
-                  canEdit: auth.canManageExpenses,
+                  canEdit: canSelectMembers,
                   onAssign: () => _showAppointSuperAdminDialog(context, society, members, isMr),
                   extraSubtitle: society.superAdminNextDueDate != null
                       ? '${isMr ? "कार्यकाळ मुदत तारीख" : "Term Due Date"}: ${AppDateFormatter.formatDate(society.superAdminNextDueDate!, isMarathi: isMr)} (${society.superAdminTermMonths} ${isMr ? "महिन्यांसाठी" : "months"})'
@@ -236,17 +181,15 @@ class CommitteeDirectoryScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // 2. Group Admins (Wing or Floor Collection Representatives)
+                // 2. Group Admins (Collection Representatives)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      isWingWise
-                          ? (isMr ? '🏢 विंग प्रतिनिधी (Wing Group Admins)' : '🏢 Wing Group Admins')
-                          : (isMr ? '🏢 मजला प्रतिनिधी (Floor Group Admins)' : '🏢 Floor Group Admins'),
+                      isMr ? '🏢 संकलन प्रतिनिधी (Group Admins)' : '🏢 Collection Reps (Group Admins)',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primaryNavy),
                     ),
-                    if (auth.canManageExpenses)
+                    if (canSelectMembers)
                       TextButton.icon(
                         icon: const Icon(Icons.add_circle, size: 16),
                         label: Text(isMr ? 'नवीन प्रतिनिधी जोडा' : 'Assign Rep', style: const TextStyle(fontSize: 12)),
@@ -256,8 +199,8 @@ class CommitteeDirectoryScreen extends StatelessWidget {
                 ),
                 Text(
                   isMr
-                      ? 'हे पद फक्त विंग/मजल्याचे मेंटेनन्स कलेक्शन करण्यापुरते मर्यादित आहे.'
-                      : 'This post is strictly for maintenance collection of respective wing/floor.',
+                      ? 'हे प्रतिनिधी विशिष्ट भागाचे मेंटेनन्स कलेक्शन करण्यासाठी चेअरमनकडून नियुक्त केले जातात.'
+                      : 'These representatives are appointed by the Chairman for area collection.',
                   style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                 ),
                 const SizedBox(height: 10),
@@ -329,7 +272,7 @@ class CommitteeDirectoryScreen extends StatelessWidget {
                               ],
                             ),
                           ),
-                          if (auth.canManageExpenses)
+                          if (canSelectMembers)
                             IconButton(
                               icon: const Icon(Icons.edit, size: 18, color: Colors.grey),
                               onPressed: () => _showAssignGroupAdminDialog(context, society, members, isMr, defaultUser: ga),
@@ -436,7 +379,6 @@ class CommitteeDirectoryScreen extends StatelessWidget {
   void _showAppointSuperAdminDialog(BuildContext context, SocietyModel society, List<AppUser> members, bool isMr) {
     String? selectedUid = members.firstOrNull?.uid;
     int termMonths = society.superAdminTermMonths;
-    String selectedGrouping = 'keep';
 
     showDialog(
       context: context,
@@ -485,37 +427,6 @@ class CommitteeDirectoryScreen extends StatelessWidget {
                     if (val != null) setState(() => termMonths = val);
                   },
                 ),
-                const SizedBox(height: 14),
-                Text(
-                  isMr ? 'व्यवस्थापन रचना बदल (हस्तांतरण वेळी ऐच्छिक)' : 'Grouping Mode (Optional on Handover)',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  value: selectedGrouping,
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
-                  items: [
-                    DropdownMenuItem(
-                      value: 'keep',
-                      child: Text(
-                        isMr
-                            ? 'चालू रचना कायम ठेवा (${society.isWingWise ? "🏢 विंग" : "🏬 मजला"})'
-                            : 'Keep Current (${society.isWingWise ? "Wing" : "Floor"})',
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: 'wing',
-                      child: Text(isMr ? '🏢 विंग पद्धतीत बदला (Wing-wise)' : '🏢 Switch to Wing-wise'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'floor',
-                      child: Text(isMr ? '🏬 मजला पद्धतीत बदला (Floor-wise)' : '🏬 Switch to Floor-wise'),
-                    ),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) setState(() => selectedGrouping = val);
-                  },
-                ),
               ],
             ),
           ),
@@ -526,38 +437,12 @@ class CommitteeDirectoryScreen extends StatelessWidget {
               onPressed: () async {
                 if (selectedUid == null) return;
 
-                String? newGroupType;
-                if (selectedGrouping != 'keep' && selectedGrouping != society.groupingType) {
-                  // Check if society has pending dues
-                  final hasDues = await FirestoreService.instance.hasPendingSocietyDues(society.id);
-                  if (hasDues) {
-                    if (dialogCtx.mounted) {
-                      showDialog(
-                        context: dialogCtx,
-                        builder: (errCtx) => AlertDialog(
-                          title: Text(isMr ? '⚠️ थकबाकी शिल्लक आहे!' : 'Outstanding Dues!'),
-                          content: Text(
-                            isMr
-                                ? 'संस्थेतील सर्व मेंटेनन्स देयके (Dues) पूर्ण भरल्याशिवाय व्यवस्थापन रचना (विंग/मजला) बदलता येणार नाही.'
-                                : 'Cannot change grouping mode while outstanding dues remain.',
-                          ),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(errCtx), child: Text(isMr ? 'समजले' : 'OK')),
-                          ],
-                        ),
-                      );
-                    }
-                    return;
-                  }
-                  newGroupType = selectedGrouping;
-                }
-
                 await FirestoreService.instance.appointNewSuperAdmin(
                   societyId: society.id,
                   newSuperAdminUid: selectedUid!,
                   termMonths: termMonths,
                   appointedByUid: society.adminUid,
-                  newGroupingType: newGroupType,
+                  newGroupingType: null,
                 );
 
                 if (dialogCtx.mounted) {
@@ -571,31 +456,6 @@ class CommitteeDirectoryScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showGroupingLockedInfo(BuildContext context, bool isMr) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.lock, color: Color(0xFF1E3A8A)),
-            const SizedBox(width: 8),
-            Text(isMr ? 'व्यवस्थापन रचना लॉक आहे' : 'Grouping Locked'),
-          ],
-        ),
-        content: Text(
-          isMr
-              ? '📌 नियम: सुपर ॲडमिनच्या चालू कार्यकाळात ही पद्धत बदलता येत नाही. नवीन सुपर ॲडमिन नियुक्तीच्या वेळी (हस्तांतरण / Handover) आवश्यकता असल्यास ही पद्धत बदलता येईल.'
-              : '📌 Rule: Grouping structure is locked during the current Super Admin term. It can be changed during handover to a new Super Admin if needed.',
-          style: const TextStyle(fontSize: 13, height: 1.4),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isMr ? 'समजले' : 'OK')),
-        ],
       ),
     );
   }
@@ -788,58 +648,5 @@ class CommitteeDirectoryScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _toggleGroupingMode(BuildContext context, AuthProvider auth, SocietyModel society, bool isMr) async {
-    // STRICT RULE: If any dues remain pending, cannot change grouping structure!
-    final hasDues = await FirestoreService.instance.hasPendingSocietyDues(society.id);
-    if (hasDues) {
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
-              children: [
-                const Icon(Icons.warning, color: Colors.red),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    isMr ? '⚠️ थकबाकी शिल्लक आहे!' : 'Outstanding Dues Pending!',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red),
-                  ),
-                ),
-              ],
-            ),
-            content: Text(
-              isMr
-                  ? 'संस्थेतील सर्व मेंटेनन्स देयके (Dues) १००% पूर्ण भरल्याशिवाय व्यवस्थापन गट पद्धत (विंग/मजला) बदलता येणार नाही. कृपया आधी सर्व थकीत बिले वसूल करा.'
-                  : 'Management grouping structure (Wing/Floor) cannot be changed while there are unpaid maintenance bills. Please collect all dues first.',
-              style: const TextStyle(fontSize: 13, height: 1.4),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(isMr ? 'समजले' : 'OK'),
-              ),
-            ],
-          ),
-        );
-      }
-      return;
-    }
-
-    final newType = society.isWingWise ? 'floor' : 'wing';
-    final typeName = newType == 'wing' ? (isMr ? 'विंग पद्धत' : 'Wing-wise') : (isMr ? 'मजला पद्धत' : 'Floor-wise');
-
-    final success = await auth.updateSocietySettings(groupingType: newType);
-    if (context.mounted && success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.green,
-          content: Text(isMr ? 'व्यवस्थापन रचना बदलून $typeName झाली!' : 'Grouping mode updated to $typeName!'),
-        ),
-      );
-    }
   }
 }

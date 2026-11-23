@@ -75,7 +75,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
               const SizedBox(height: 24),
 
               Text(
-                isMr ? 'अ‍ॅडमिन मंजुरीची प्रतीक्षा आहे' : 'Awaiting Admin Approval',
+                isMr ? 'चेअरमन मंजुरीची प्रतीक्षा आहे' : 'Awaiting Chairman Approval',
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -87,8 +87,8 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
 
               Text(
                 isMr
-                    ? 'आपली विनंती सोसायटीच्या सचिवांकडे मंजुरीसाठी पाठवण्यात आली आहे. त्यांनी मंजूर करताच आपला डॅशबोर्ड आपोआप सुरू होईल.'
-                    : 'Your membership request has been sent to the Society Secretary. Once approved, your dashboard will activate automatically.',
+                    ? 'आपली विनंती सोसायटीच्या चेअरमन यांच्याकडे मंजुरीसाठी पाठवण्यात आली आहे. त्यांनी मंजूर करताच आपला डॅशबोर्ड आपोआप सुरू होईल.'
+                    : 'Your membership request has been sent to the Society Chairman. Once approved, your dashboard will activate automatically.',
                 style: const TextStyle(fontSize: 14, color: Color(0xFF475569), height: 1.5),
                 textAlign: TextAlign.center,
               ),

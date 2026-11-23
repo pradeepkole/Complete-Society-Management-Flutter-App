@@ -23,6 +23,42 @@ class AdminApprovalsScreen extends StatelessWidget {
       );
     }
 
+    // STRICT RULE: Only Chairman (and SoftAdmin) can approve new members
+    if (!auth.canApproveMembers) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            isMr ? 'सदस्य मंजुरी (केवळ चेअरमन)' : 'Member Approvals (Chairman Only)',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.gavel_rounded, size: 64, color: Color(0xFFD97706)),
+                const SizedBox(height: 16),
+                Text(
+                  isMr ? 'केवळ चेअरमन यांना अधिकार' : 'Chairman Authority Only',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isMr
+                      ? 'नवीन सभासदांची पडताळणी करून त्यांना सोसायटीत प्रवेश देण्याचे अधिकार नियमानुसार केवळ संस्थेच्या चेअरमन (Chairman) यांना आहेत.'
+                      : 'Only the Society Chairman has the authority to review and approve new member admissions.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.5),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -155,7 +191,9 @@ class AdminApprovalsScreen extends StatelessWidget {
                 const Icon(Icons.meeting_room, size: 16, color: Color(0xFF64748B)),
                 const SizedBox(width: 4),
                 Text(
-                  '${isMr ? "फ्लॅट: " : "Flat: "}Wing ${user.wing} - ${user.flatNumber}',
+                  user.wing.isNotEmpty
+                      ? '${isMr ? "फ्लॅट: " : "Flat: "}${user.wing} - ${user.flatNumber}'
+                      : '${isMr ? "फ्लॅट: " : "Flat: "}${user.flatNumber}',
                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
                 ),
                 const SizedBox(width: 16),

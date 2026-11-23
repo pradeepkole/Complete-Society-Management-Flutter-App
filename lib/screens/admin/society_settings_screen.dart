@@ -62,53 +62,6 @@ class _SocietySettingsScreenState extends State<SocietySettingsScreen> {
     _maintenanceAmountController = TextEditingController(text: soc?.defaultMaintenanceAmount.toStringAsFixed(0) ?? '2000');
   }
 
-  Future<void> _handleGroupingTypeChange(String newType, bool isMr) async {
-    if (newType == _groupingType) return;
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final soc = auth.currentSociety;
-    if (soc == null) return;
-
-    // STRICT RULE: If any dues remain pending, cannot change grouping structure!
-    final hasDues = await FirestoreService.instance.hasPendingSocietyDues(soc.id);
-    if (hasDues) {
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
-              children: [
-                const Icon(Icons.warning, color: Colors.red),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    isMr ? '⚠️ थकबाकी शिल्लक आहे!' : 'Outstanding Dues Pending!',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red),
-                  ),
-                ),
-              ],
-            ),
-            content: Text(
-              isMr
-                  ? 'संस्थेतील सर्व मेंटेनन्स देयके (Dues) १००% पूर्ण भरल्याशिवाय व्यवस्थापन गट पद्धत (विंग/मजला) बदलता येणार नाही. कृपया आधी सर्व थकीत बिले वसूल करा.'
-                  : 'Management grouping structure (Wing/Floor) cannot be changed while there are unpaid maintenance bills. Please collect all dues first.',
-              style: const TextStyle(fontSize: 13, height: 1.4),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(isMr ? 'समजले' : 'OK'),
-              ),
-            ],
-          ),
-        );
-      }
-      return;
-    }
-
-    setState(() => _groupingType = newType);
-  }
-
   void _showExtendTenureDialog(AuthProvider auth, bool isMr) {
     int additionalMonths = 3;
     showDialog(
@@ -322,7 +275,7 @@ class _SocietySettingsScreenState extends State<SocietySettingsScreen> {
               const SizedBox(height: 24),
 
               // ==========================================
-              // 1. MANAGEMENT GROUPING STRUCTURE & TENURE
+              // 1. GOVERNANCE & SELECTION POLICY
               // ==========================================
               Container(
                 padding: const EdgeInsets.all(16),
@@ -336,131 +289,20 @@ class _SocietySettingsScreenState extends State<SocietySettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.hub_outlined, color: Color(0xFF1E3A8A)),
+                        const Icon(Icons.verified, color: Color(0xFF0D9488), size: 20),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            isMr ? '१. व्यवस्थापन गट रचना (Grouping Structure)' : '1. Management Grouping Structure',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
-                          ),
+                        Text(
+                          isMr ? 'संस्था पद व निवड धोरण (Governance Policy)' : 'Governance & Selection Policy',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F766E)),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 10),
                     Text(
                       isMr
-                          ? 'संस्थेत मेंटेनन्स वसुली व प्रतिनिधी विंगनुसार करायचे की मजल्यानुसार हे ठरवा.'
-                          : 'Choose whether maintenance & admins are organised Wing-wise or Floor-wise.',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                    ),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                _groupingType == 'floor' ? Icons.stairs : Icons.apartment,
-                                color: const Color(0xFF1E3A8A),
-                                size: 26,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _groupingType == 'floor'
-                                          ? (isMr ? '🏬 चालू रचना: मजला पद्धत (Floor-wise)' : '🏬 Active Mode: Floor-wise')
-                                          : (isMr ? '🏢 चालू रचना: विंग पद्धत (Wing-wise)' : '🏢 Active Mode: Wing-wise'),
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E3A8A)),
-                                    ),
-                                    Text(
-                                      _groupingType == 'floor'
-                                          ? (isMr ? 'प्रत्येक मजल्यासाठी संकलन प्रतिनिधी' : 'Floor collection representatives')
-                                          : (isMr ? 'प्रत्येक विंगसाठी संकलन प्रतिनिधी' : 'Wing collection representatives'),
-                                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEFF6FF),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: const Color(0xFFBFDBFE)),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.lock, size: 12, color: Color(0xFF1E40AF)),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      isMr ? 'कार्यकाळ संपेपर्यंत लॉक' : 'Locked for Term',
-                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              isMr
-                                  ? '📌 नियम: सुपर ॲडमिनच्या चालू कार्यकाळात ही पद्धत बदलता येत नाही. नवीन सुपर ॲडमिन नियुक्तीच्या वेळी (Handover) आवश्यकता असल्यास ही पद्धत बदलता येईल.'
-                                  : '📌 Rule: Grouping structure is locked during the Super Admin\'s term. It can be changed during Super Admin handover if needed.',
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF475569), height: 1.3),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Governance Policy Summary: Super Admin Fixed & Group Admin Rotation
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFCBD5E1)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.verified, color: Color(0xFF0D9488), size: 18),
-                              const SizedBox(width: 8),
-                              Text(
-                                isMr ? 'संस्था पद व रोटेशन धोरण' : 'Governance & Rotation Policy',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F766E)),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            isMr
-                                ? '• सुपर ॲडमिन (सचिव): 🔒 स्थायी (Fixed) पद • संस्थेचे मुख्य प्रशासकीय व तांत्रिक प्रमुख.\n• ग्रुप ॲडमिन (विंग/मजला): 🔄 रोटेशन पद्धत (Rotation-wise) • कमिटी पद फलकावरून थेट पुढील सभासदाकडे रोटेट करता येते.'
-                                : '• Super Admin (Secretary): 🔒 Fixed Post • Main administrative head.\n• Group Admin (Wing/Floor): 🔄 Rotation-wise • Can be rotated directly from Committee Directory.',
-                            style: const TextStyle(fontSize: 11.5, color: Color(0xFF334155), height: 1.4),
-                          ),
-                        ],
-                      ),
+                          ? '• चेअरमन (अध्यक्ष): 👑 नवीन सदस्यांची निवड व मंजुरी (Approval Authority).\n• सुपर ॲडमिन (सचिव): 🔒 स्थायी प्रशासकीय प्रमुख • कार्यकाळ मुदत धोरणानुसार व्यवस्थापन.\n• संकलन प्रतिनिधी (Group Admin): 🔄 संकलनासाठी कमिटीकडून थेट रोटेशन पद्धत.'
+                          : '• Chairman: 👑 New member selection and approval authority.\n• Super Admin (Secretary): 🔒 Administrative operations head.\n• Group Admin: 🔄 Collection representatives assigned by committee.',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF334155), height: 1.5),
                     ),
                   ],
                 ),

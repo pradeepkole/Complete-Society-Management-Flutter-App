@@ -48,6 +48,10 @@ class AppUser {
   bool get isMember => role == 'member';
   bool get isGuard => role == 'guard';
 
+  // Authority check: Only Chairman (and SoftAdmin) can approve and select members/committee
+  bool get canApproveMembers => isSoftAdmin || isChairman;
+  bool get canSelectMembers => isSoftAdmin || isChairman;
+
   // Authority check: Only Super Admin and Chairman can manage expenses & cancel entries
   bool get canManageExpenses => isSoftAdmin || isSuperAdmin || isChairman;
   bool get canCancelEntries => isSoftAdmin || isSuperAdmin || isChairman;

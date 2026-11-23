@@ -417,42 +417,7 @@ class _CreateSocietyScreenState extends State<CreateSocietyScreen> {
                   ),
                 ],
               ),
-              // Grouping Type (Wing vs Floor)
-              Text(
-                isMr ? 'व्यवस्थापन गट पद्धत (Grouping Structure) *' : 'Management Grouping Structure *',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Column(
-                  children: [
-                    RadioListTile<String>(
-                      title: Text(isMr ? 'विंग पद्धत (Wing-wise) - उदा. A, B, C विंग्स' : 'Wing-wise (e.g. Wing A, B, C)'),
-                      subtitle: Text(isMr ? 'प्रत्येक विंगसाठी स्वतंत्र ग्रुप ॲडमिन राहील' : 'Each wing will have its own Group Admin'),
-                      value: 'wing',
-                      groupValue: _groupingType,
-                      onChanged: (val) {
-                        if (val != null) setState(() => _groupingType = val);
-                      },
-                    ),
-                    const Divider(height: 1),
-                    RadioListTile<String>(
-                      title: Text(isMr ? 'मजला पद्धत (Floor-wise) - उदा. १ ला, २ रा मजला' : 'Floor-wise (e.g. 1st, 2nd, 3rd Floor)'),
-                      subtitle: Text(isMr ? 'प्रत्येक मजल्यासाठी स्वतंत्र ग्रुप ॲडमिन राहील' : 'Each floor will have its own Group Admin'),
-                      value: 'floor',
-                      groupValue: _groupingType,
-                      onChanged: (val) {
-                        if (val != null) setState(() => _groupingType = val);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
 
               // Super Admin Term
               Text(

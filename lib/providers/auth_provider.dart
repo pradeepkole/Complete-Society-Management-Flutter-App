@@ -48,6 +48,8 @@ class AuthProvider extends ChangeNotifier {
   bool get isMember => _currentUser?.isMember ?? false;
   bool get isGuard => _currentUser?.isGuard ?? false;
   bool get isSoftAdmin => _currentUser?.isSoftAdmin ?? false;
+  bool get canApproveMembers => _currentUser?.canApproveMembers ?? false;
+  bool get canSelectMembers => _currentUser?.canSelectMembers ?? false;
   bool get canManageExpenses => _currentUser?.canManageExpenses ?? isAdmin;
   bool get canCancelEntries => _currentUser?.canCancelEntries ?? isSuperAdmin;
   bool get isCollectionAdminOnly => _currentUser?.isCollectionAdminOnly ?? false;

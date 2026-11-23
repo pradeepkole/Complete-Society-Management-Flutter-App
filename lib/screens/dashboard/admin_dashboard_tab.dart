@@ -93,8 +93,8 @@ class AdminDashboardTab extends StatelessWidget {
               ),
             ),
 
-          // Pending Member Approvals Banner (Live stream)
-          if (society != null)
+          // Pending Member Approvals Banner (Live stream - Only for Chairman and SoftAdmin)
+          if (society != null && auth.canApproveMembers)
             StreamBuilder<List<AppUser>>(
               stream: FirestoreService.instance.streamPendingApprovals(society.id),
               builder: (context, snapshot) {
@@ -124,7 +124,7 @@ class AdminDashboardTab extends StatelessWidget {
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF92400E)),
                             ),
                             Text(
-                              isMr ? 'तपासण्यासाठी व मंजूर करण्यासाठी टॅप करा' : 'Tap to review and approve',
+                              isMr ? 'तपासण्यासाठी व मंजूर करण्यासाठी टॅप करा (केवळ चेअरमन अधिकार)' : 'Tap to review and approve (Chairman only)',
                               style: const TextStyle(fontSize: 11, color: Color(0xFFB45309)),
                             ),
                           ],
@@ -352,16 +352,18 @@ class AdminDashboardTab extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
               ],
-              _buildActionTile(
-                context,
-                icon: Icons.how_to_reg,
-                label: isMr ? 'सदस्य मंजुरी' : 'Approvals',
-                color: const Color(0xFFD97706),
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminApprovalsScreen()));
-                },
-              ),
-              const SizedBox(width: 8),
+              if (auth.canApproveMembers) ...[
+                _buildActionTile(
+                  context,
+                  icon: Icons.how_to_reg,
+                  label: isMr ? 'सदस्य मंजुरी' : 'Approvals',
+                  color: const Color(0xFFD97706),
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminApprovalsScreen()));
+                  },
+                ),
+                const SizedBox(width: 8),
+              ],
               _buildActionTile(
                 context,
                 icon: Icons.settings,

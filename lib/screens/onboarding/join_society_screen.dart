@@ -37,7 +37,7 @@ class _JoinSocietyScreenState extends State<JoinSocietyScreen> {
     final success = await auth.joinSocietyWithCode(
       societyCode: code,
       role: _selectedRole,
-      wing: _selectedRole == 'member' ? _selectedWing : '',
+      wing: '',
       flatNumber: _selectedRole == 'member' ? _flatController.text.trim() : '',
       phoneNumber: _phoneController.text.trim(),
     );
@@ -205,82 +205,23 @@ class _JoinSocietyScreenState extends State<JoinSocietyScreen> {
               ),
               const SizedBox(height: 20),
 
-              // If Member: Wing / Floor & Flat Number
+              // If Member: Flat Number
               if (_selectedRole == 'member') ...[
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isMr ? 'विंग / मजला (Wing / Floor)' : 'Wing / Floor',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                          ),
-                          const SizedBox(height: 6),
-                          DropdownButtonFormField<String>(
-                            value: _selectedWing,
-                            items: [
-                              const DropdownMenuItem(
-                                enabled: false,
-                                value: 'HEADER_WINGS',
-                                child: Text('--- विंग (Wings) ---', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                              ),
-                              ...['A', 'B', 'C', 'D', 'E'].map((w) {
-                                return DropdownMenuItem(
-                                  value: w,
-                                  child: Text(isMr ? 'विंग $w' : 'Wing $w'),
-                                );
-                              }),
-                              const DropdownMenuItem(
-                                enabled: false,
-                                value: 'HEADER_FLOORS',
-                                child: Text('--- मजले (Floors) ---', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                              ),
-                              ...['Floor 1', 'Floor 2', 'Floor 3', 'Floor 4', 'Floor 5', 'Floor 6', 'Floor 7'].map((f) {
-                                final fNum = f.replaceAll('Floor ', '');
-                                return DropdownMenuItem(
-                                  value: f,
-                                  child: Text(isMr ? 'मजला $fNum' : f),
-                                );
-                              }),
-                            ],
-                            onChanged: (val) {
-                              if (val != null && !val.startsWith('HEADER_')) {
-                                setState(() => _selectedWing = val);
-                              }
-                            },
-                            decoration: InputDecoration(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(isMr ? 'फ्लॅट क्रमांक *' : 'Flat Number *', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          const SizedBox(height: 6),
-                          TextFormField(
-                            controller: _flatController,
-                            decoration: InputDecoration(
-                              hintText: 'उदा. 101, 202',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                            validator: (val) => val == null || val.trim().isEmpty
-                                ? (isMr ? 'फ्लॅट क्रमांक आवश्यक' : 'Flat required')
-                                : null,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                Text(
+                  isMr ? 'फ्लॅट / सदनिका क्रमांक (Flat Number) *' : 'Flat Number *',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: _flatController,
+                  decoration: InputDecoration(
+                    hintText: isMr ? 'उदा. 101, 204, A-302, B-401' : 'e.g. 101, 204, A-302, B-401',
+                    prefixIcon: const Icon(Icons.meeting_room),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  validator: (val) => val == null || val.trim().isEmpty
+                      ? (isMr ? 'फ्लॅट क्रमांक आवश्यक आहे' : 'Flat number is required')
+                      : null,
                 ),
                 const SizedBox(height: 16),
 
